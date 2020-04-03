@@ -3,6 +3,11 @@ __version__ = '0.1.0'
 from llvmlite import ir
 import llvmlite.binding as llvm
 
+# Types
+T_I64 = ir.IntType(64)
+T_I32 = ir.IntType(32)
+T_I8 = ir.IntType(8)
+
 def init_llvm():
     """Setup the LLVM core."""
     llvm.initialize()
@@ -11,15 +16,16 @@ def init_llvm():
 
 def deinit_llvm():
     """Shutdown the LLVM core."""
+    # XXX this currently breaks, and I'm unclear if we need it.
     llvm.shutdown()
 
-def create_execution_engine():
+def compile_execution_engine():
     """
-    Create an ExecutionEngine suitable for JIT code generation on
+    Compile an ExecutionEngine suitable for JIT code generation on
     the host CPU.  The engine is reusable for an arbitrary number of
     modules.
     """
-    # Create a target machine representing the host
+    # Compile a target machine representing the host
     target = llvm.Target.from_default_triple()
     target_machine = target.create_target_machine()
     # And an execution engine with an empty backing module
@@ -40,24 +46,71 @@ def compile_ir(engine, llvm_ir):
     engine.run_static_constructors()
     return mod
 
-def create_add_func():
-    integer = ir.IntType(32)
-    ftype = ir.FunctionType(integer, [])
-    module = ir.Module(name=__file__)
-    module.triple = llvm.get_default_triple()
-    func = ir.Function(module, ftype, name="main")
+def compile_syscall(builder, arg):
+    sys_write = 0x2000004
+    # regs = ','.join(['rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9'][:len(args)])
+    regs = ','.join(['rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9'][:1])
+
+    # store the arg on the stack & get a pointer
+    ptr = builder.alloca(arg.type)
+    builder.store(arg, ptr)
+
+    # TODO types don't line up here
+    f_type = ir.FunctionType(T_I64, [arg, ptr])
+    builder.asm(f_type,
+                "syscall",
+                "=r,{rax}," + regs + ",~{dirflag},~{fspr},~{flags}",
+                [ptr, ptr], # Args
+                True, # Side effects
+                name="syscall") # Optional name
+
+def compile_str_func(module, name, s):
+    # module = ir.Module(name=name)
+    # module.triple = llvm.get_default_triple()
+
+    s_type = ir.ArrayType(T_I8, len(s))
+    f_type = ir.FunctionType(s_type , [])
+    func = ir.Function(module, f_type, name=name)
+
     block = func.append_basic_block(name="entry")
     builder = ir.IRBuilder(block)
-    result = ir.Constant(integer, 42)
-    builder.ret(result)
+
+    s = ir.Constant(s_type, [ord(c) for c in s])
+    sc = compile_syscall(builder, s)
+
+    builder.ret(s)
+
+    return func
+
+def compile_main_func():
+    module = ir.Module(name=__file__)
+    module.triple = llvm.get_default_triple()
+
+    f_type = ir.FunctionType(T_I32, [])
+    func = ir.Function(module, f_type, name="main")
+
+    block = func.append_basic_block(name="entry")
+    builder = ir.IRBuilder(block)
+
+    hello_func = compile_str_func(module, "say_hello", "hello, world!\n")
+    builder.call(hello_func, [])
+    builder.ret(ir.Constant(T_I32, 42))
+
     return module
 
 def main():
     init_llvm()
-    add_mod = create_add_func()
-    engine = create_execution_engine()
-    mod = compile_ir(engine, str( add_mod))
-    print(mod)
+    engine = compile_execution_engine()
+
+    main_mod = compile_main_func()
+    main_mod = compile_ir(engine, str(main_mod))
+
+    # this works, but I don't know how to call it then.
+    # str_mod = compile_str_func("say_hello", "hello, world!\n")
+    # str_mod = compile_ir(engine, str(str_mod))
+    # main_mod.link_in(str_mod, preserve=True)
+
+    print(main_mod)
     # deinit_llvm()
 
 if __name__ == '__main__':
