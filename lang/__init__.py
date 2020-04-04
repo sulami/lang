@@ -54,35 +54,29 @@ def compile_ir(engine, llvm_ir):
 def load_external_function(module, type_spec, name):
     return ir.Function(module, type_spec, name=name)
 
-def call_print_str(env, string):
+def store_string(env, string):
+    """
+    Compiles a set of instructions to store a string and returns an
+    anonymised pointer to it. Properly deals with unicode.
+    """
     string += '\0'
     byte_array = bytearray(string.encode('utf8'))
     s_type = ir.ArrayType(T_I8, len(byte_array))
     s = ir.Constant(s_type, byte_array)
     s_ptr = env.builder.alloca(s_type)
     env.builder.store(s, s_ptr)
-    arg = env.builder.bitcast(s_ptr, T_VOID_PTR)
-    env.call("printf", [arg])
+    return env.builder.bitcast(s_ptr, T_VOID_PTR)
 
 def call_print_ptr(env, ptr):
     env.call("printf", [ptr])
 
+def call_print_str(env, string):
+    ptr = store_string(env, string)
+    call_print_ptr(env, ptr)
+
 def call_read_file(env, path, mode):
-    # TODO args don't handle unicode yet
-    path += '\0'
-    path_type = ir.ArrayType(T_I8, len(path))
-    path_ptr = env.builder.alloca(path_type)
-    path_const = ir.Constant(path_type, bytearray(path.encode('utf8')))
-    env.builder.store(path_const, path_ptr)
-
-    mode += '\0'
-    mode_type = ir.ArrayType(T_I8, len(mode))
-    mode_ptr = env.builder.alloca(mode_type)
-    mode_const = ir.Constant(mode_type, bytearray(mode.encode('utf8')))
-    env.builder.store(mode_const, mode_ptr)
-
-    path_arg = env.builder.bitcast(path_ptr, T_VOID_PTR)
-    mode_arg = env.builder.bitcast(mode_ptr, T_VOID_PTR)
+    path_arg = store_string(env, path)
+    mode_arg = store_string(env, mode)
     return env.call("read_file", [path_arg, mode_arg])
 
 class Environment:
