@@ -126,18 +126,15 @@ def compile_loop(env):
     loop_block = env.add_block('loop')
     exit_block = env.add_block('exit')
 
-    previous_block = env.current_block
-    env.switch_block('exit')
-    call_print_str(env, 'done looping\n')
-    env.builder.ret(ir.Constant(T_I32, 0))
+    env.builder.branch(loop_block)
 
     env.switch_block('loop')
     call_print_str(env, 'looping...\n')
     condition = env.call("random_bool", [])
     env.builder.cbranch(condition, loop_block, exit_block)
 
-    env.switch_block(previous_block)
-    env.builder.branch(loop_block)
+    env.switch_block('exit')
+    call_print_str(env, 'done looping\n')
 
 def compile_main_func():
     module = ir.Module(name='main')
@@ -159,14 +156,15 @@ def compile_main_func():
 
     call_print_str(env, "Printing a long string here.\nWith unicode: Hélène\n")
 
+    call_print_str(env, "Here is some file content:\n")
     file_contents = call_read_file(env, "README.rst", "r")
     call_print_ptr(env, file_contents)
 
-    # compile_if(env)
-
+    call_print_str(env, "Here is a random boolean:\n")
+    compile_if(env)
+    call_print_str(env, "Here is a loop:\n")
     compile_loop(env)
-
-    # env.builder.ret(ir.Constant(T_I32, 0))
+    env.builder.ret(ir.Constant(T_I32, 0))
 
     return module
 
