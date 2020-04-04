@@ -8,6 +8,7 @@ import llvmlite.binding as llvm
 
 # Types
 T_VOID = ir.VoidType()
+T_VOID_PTR = ir.IntType(8).as_pointer()
 T_I64 = ir.IntType(64)
 T_I32 = ir.IntType(32)
 T_I8 = ir.IntType(8)
@@ -50,42 +51,51 @@ def compile_ir(engine, llvm_ir):
     engine.run_static_constructors()
     return mod
 
-def compile_print_func(module, builder, string):
+def load_external_function(module, type_spec, name):
+    return ir.Function(module, type_spec, name=name)
+
+def call_print_str(env, string):
     string += '\0'
-    s_type = ir.ArrayType(T_I8, len(string))
-    s_ptr = builder.alloca(s_type)
-    s = ir.Constant(s_type, [ord(c) for c in string])
-    builder.store(s, s_ptr)
-    print_func = ir.Function(module,
-                             ir.FunctionType(T_VOID, [s_type.as_pointer()]),
-                             name="print")
-    builder.call(print_func, [s_ptr])
+    byte_array = bytearray(string.encode('utf8'))
+    s_type = ir.ArrayType(T_I8, len(byte_array))
+    s = ir.Constant(s_type, byte_array)
+    s_ptr = env.builder.alloca(s_type)
+    env.builder.store(s, s_ptr)
+    arg = env.builder.bitcast(s_ptr, T_VOID_PTR)
+    env.call("printf", [arg])
 
-def compile_ptr_print_func(module, builder, ptr):
-    print_func = ir.Function(module,
-                             ir.FunctionType(T_VOID, [ir.PointerType(T_I8)]),
-                             name="print")
-    builder.call(print_func, [ptr])
+def call_print_ptr(env, ptr):
+    env.call("printf", [ptr])
 
-def compile_read_file_func(module, builder, path, mode):
+def call_read_file(env, path, mode):
+    # TODO args don't handle unicode yet
     path += '\0'
     path_type = ir.ArrayType(T_I8, len(path))
-    path_ptr = builder.alloca(path_type)
-    path_const = ir.Constant(path_type, [ord(c) for c in path])
-    builder.store(path_const, path_ptr)
+    path_ptr = env.builder.alloca(path_type)
+    path_const = ir.Constant(path_type, bytearray(path.encode('utf8')))
+    env.builder.store(path_const, path_ptr)
 
     mode += '\0'
     mode_type = ir.ArrayType(T_I8, len(mode))
-    mode_ptr = builder.alloca(mode_type)
-    mode_const = ir.Constant(mode_type, [ord(c) for c in mode])
-    builder.store(mode_const, mode_ptr)
+    mode_ptr = env.builder.alloca(mode_type)
+    mode_const = ir.Constant(mode_type, bytearray(mode.encode('utf8')))
+    env.builder.store(mode_const, mode_ptr)
 
-    ext_func = ir.Function(module,
-                           ir.FunctionType(ir.PointerType(T_I8),
-                                           [path_type.as_pointer(),
-                                            mode_type.as_pointer()]),
-                           name="read_file")
-    return builder.call(ext_func, [path_ptr, mode_ptr])
+    path_arg = env.builder.bitcast(path_ptr, T_VOID_PTR)
+    mode_arg = env.builder.bitcast(mode_ptr, T_VOID_PTR)
+    return env.call("read_file", [path_arg, mode_arg])
+
+class Environment:
+    def __init__(self, module, builder):
+        self.module = module
+        self.builder = builder
+        self.lib = dict()
+
+    def add_func(self, name, func):
+        self.lib[name] = func
+
+    def call(self, name, args):
+        return self.builder.call(self.lib[name], args)
 
 def compile_main_func():
     module = ir.Module(name=__file__)
@@ -97,17 +107,29 @@ def compile_main_func():
     block = func.append_basic_block(name="entry")
     builder = ir.IRBuilder(block)
 
-    lib_func = ir.Function(module,
-                           ir.FunctionType(T_VOID, []),
-                           name="init_nebula")
-    builder.call(lib_func, [])
+    env = Environment(module, builder)
+    env.add_func("init_nebula",
+                 ir.Function(module,
+                             ir.FunctionType(T_VOID, []),
+                             name="init_nebula"))
+    env.add_func("printf",
+                 ir.Function(module,
+                             ir.FunctionType(T_VOID, [T_VOID_PTR], var_arg=True),
+                             name="printf"))
+    env.add_func("read_file",
+                 ir.Function(module,
+                             ir.FunctionType(ir.PointerType(T_I8),
+                                             [T_VOID_PTR, T_VOID_PTR]),
+                             name="read_file"))
 
-    # compile_print_func(module, builder, "Printing a long string here.")
+    env.call("init_nebula", [])
 
-    file_contents = compile_read_file_func(module, builder, "README.rst", "r")
-    compile_ptr_print_func(module, builder, file_contents)
+    call_print_str(env, "Printing a long string here.\nWith unicode: Hélène\n")
 
-    builder.ret(ir.Constant(T_I32, 42))
+    file_contents = call_read_file(env, "README.rst", "r")
+    call_print_ptr(env, file_contents)
+
+    builder.ret(ir.Constant(T_I32, 0))
 
     return module
 
@@ -152,6 +174,7 @@ def main():
 
     main_mod = compile_main_func()
     main_mod = compile_ir(engine, str(main_mod))
+    # print(main_mod)
     compile_binary(main_mod)
 
     # this works, but I don't know how to call it then.
