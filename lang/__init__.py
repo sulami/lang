@@ -7,6 +7,7 @@ from llvmlite import ir
 import llvmlite.binding as llvm
 
 # Types
+T_VOID = ir.VoidType()
 T_I64 = ir.IntType(64)
 T_I32 = ir.IntType(32)
 T_I8 = ir.IntType(8)
@@ -49,41 +50,16 @@ def compile_ir(engine, llvm_ir):
     engine.run_static_constructors()
     return mod
 
-def compile_syscall(builder, arg):
-    sys_write = 0x2000004
-    # regs = ','.join(['rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9'][:len(args)])
-    regs = ','.join(['rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9'][:1])
-
-    # store the arg on the stack & get a pointer
-    ptr = builder.alloca(arg.type)
-    builder.store(arg, ptr)
-
-    # TODO types don't line up here
-    f_type = ir.FunctionType(T_I64, [arg, ptr])
-    builder.asm(f_type,
-                "syscall",
-                "=r,{rax}," + regs + ",~{dirflag},~{fspr},~{flags}",
-                [ptr, ptr], # Args
-                True, # Side effects
-                name="syscall") # Optional name
-
-def compile_str_func(module, name, s):
-    # module = ir.Module(name=name)
-    # module.triple = llvm.get_default_triple()
-
-    s_type = ir.ArrayType(T_I8, len(s))
-    f_type = ir.FunctionType(s_type , [])
-    func = ir.Function(module, f_type, name=name)
-
-    block = func.append_basic_block(name="entry")
-    builder = ir.IRBuilder(block)
-
-    s = ir.Constant(s_type, [ord(c) for c in s])
-    # sc = compile_syscall(builder, s)
-
-    builder.ret(s)
-
-    return func
+def compile_print_func(module, builder, string):
+    string += '\0'
+    s_type = ir.ArrayType(T_I8, len(string))
+    s_ptr = builder.alloca(s_type)
+    s = ir.Constant(s_type, [ord(c) for c in string])
+    builder.store(s, s_ptr)
+    print_func = ir.Function(module,
+                             ir.FunctionType(T_VOID, [s_type.as_pointer()]),
+                             name="print")
+    builder.call(print_func, [s_ptr])
 
 def compile_main_func():
     module = ir.Module(name=__file__)
@@ -95,12 +71,13 @@ def compile_main_func():
     block = func.append_basic_block(name="entry")
     builder = ir.IRBuilder(block)
 
-    # hello_func = compile_str_func(module, "say_hello", "hello, world!\n")
-    # builder.call(hello_func, [])
     lib_func = ir.Function(module,
-                           ir.FunctionType(ir.VoidType(), []),
-                           name="say_hi")
+                           ir.FunctionType(T_VOID, []),
+                           name="init_nebula")
     builder.call(lib_func, [])
+
+    compile_print_func(module, builder, "Printing a long string here.")
+
     builder.ret(ir.Constant(T_I32, 42))
 
     return module
