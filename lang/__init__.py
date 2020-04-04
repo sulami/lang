@@ -95,18 +95,56 @@ def compile_main_func():
     block = func.append_basic_block(name="entry")
     builder = ir.IRBuilder(block)
 
-    hello_func = compile_str_func(module, "say_hello", "hello, world!\n")
-    builder.call(hello_func, [])
+    # hello_func = compile_str_func(module, "say_hello", "hello, world!\n")
+    # builder.call(hello_func, [])
+    lib_func = ir.Function(module,
+                           ir.FunctionType(ir.VoidType(), []),
+                           name="say_hi")
+    builder.call(lib_func, [])
     builder.ret(ir.Constant(T_I32, 42))
 
     return module
 
+def compile_nebula():
+    print("Compiling nebula...")
+    subprocess.run(["cc",
+                    "-Wall",
+                    "-shared",
+                    "-fpic",
+                    "-o", "libnebula.so",
+                    "lang/nebula.c"])
+    llvm.load_library_permanently("libnebula.so")
+
+def compile_binary(module):
+    with tempfile.NamedTemporaryFile(mode='w', suffix=".ll") as tmp_llvm_ir:
+        with tempfile.NamedTemporaryFile(mode='wb', suffix=".o") as tmp_obj:
+            # Compile the object
+            print("Compiling LLVM IR...")
+            tmp_llvm_ir.write(str(module))
+            tmp_llvm_ir.flush()
+            subprocess.run(["/usr/local/opt/llvm/bin/llc",
+                            "--filetype=obj",
+                            "-o=" + tmp_obj.name,
+                            tmp_llvm_ir.name],
+                           check=True)
+            # Link & compile the binary
+            print("Compiling binary...")
+            subprocess.run(["cc",
+                            "-Wall",
+                            "-o", "out",
+                            "-L/Users/sulami/build/lang",
+                            "-lnebula",
+                            tmp_obj.name],
+                           check=True)
+
 def main():
     init_llvm()
+    compile_nebula()
     engine = compile_execution_engine()
 
     main_mod = compile_main_func()
     main_mod = compile_ir(engine, str(main_mod))
+    compile_binary(main_mod)
 
     # this works, but I don't know how to call it then.
     # str_mod = compile_str_func("say_hello", "hello, world!\n")
@@ -114,20 +152,6 @@ def main():
     # main_mod.link_in(str_mod, preserve=True)
 
     # print(main_mod)
-
-    with tempfile.NamedTemporaryFile(mode='w', suffix=".ll") as tmp_llvm_ir:
-        with tempfile.NamedTemporaryFile(mode='wb', suffix=".o") as tmp_obj:
-            tmp_llvm_ir.write(str(main_mod))
-            tmp_llvm_ir.flush()
-            subprocess.run(["/usr/local/opt/llvm/bin/llc",
-                            "--filetype=obj",
-                            "-o=" + tmp_obj.name,
-                            tmp_llvm_ir.name],
-                           check=True)
-            subprocess.run(["cc",
-                            "-o", "out",
-                            tmp_obj.name],
-                           check=True)
 
 if __name__ == '__main__':
     main()

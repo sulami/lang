@@ -5,7 +5,10 @@ Useful links:
 * `LLVM 7 Manual <https://releases.llvm.org/7.0.0/docs/LangRef.html>`_
 * `llvmlite bindings manual <https://llvmlite.readthedocs.io/en/v0.31.0/user-guide/ir/values.html>`_
 * `Lisp -> LLVM compiler <https://github.com/eatonphil/ulisp>`_
-  _
+* `Shared libaries <https://www.cprogramming.com/tutorial/shared-libraries-linux-gcc.html>`_
+
+::
+ cc -shared -o libprint.so -fpic lang/print.c
 
 ::
  poetry run lang > out.ll
