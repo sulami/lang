@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 void init_nebula() {
   puts("Nebula initalised.");
@@ -16,4 +17,9 @@ char* read_file(const char* file_name, const char* mode) {
   fgets(buf, buf_size, fp);
   fclose(fp);
   return buf;
+}
+
+bool random_bool() {
+  srand(1);
+  return rand() % 2;
 }

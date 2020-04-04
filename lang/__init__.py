@@ -12,6 +12,7 @@ T_VOID_PTR = ir.IntType(8).as_pointer()
 T_I64 = ir.IntType(64)
 T_I32 = ir.IntType(32)
 T_I8 = ir.IntType(8)
+T_BOOL = ir.IntType(1)
 
 def init_llvm():
     """Setup the LLVM core."""
@@ -80,9 +81,10 @@ def call_read_file(env, path, mode):
     return env.call("read_file", [path_arg, mode_arg])
 
 class Environment:
-    def __init__(self, module, builder):
+    def __init__(self, module, fn, builder):
         self.module = module
         self.builder = builder
+        self.fn = fn
         self.lib = dict()
 
     def declare_fn(self, name, return_type, arg_types, **kwargs):
@@ -95,6 +97,14 @@ class Environment:
     def call(self, name, args):
         return self.builder.call(self.lib[name], args)
 
+def compile_if(env):
+    condition = env.call("random_bool", [])
+    with env.builder.if_else(condition) as (then, otherwise):
+        with then:
+            call_print_str(env, "true\n")
+        with otherwise:
+            call_print_str(env, "false\n")
+
 def compile_main_func():
     module = ir.Module(name=__file__)
     module.triple = llvm.get_default_triple()
@@ -105,10 +115,11 @@ def compile_main_func():
     block = func.append_basic_block(name="entry")
     builder = ir.IRBuilder(block)
 
-    env = Environment(module, builder)
+    env = Environment(module, func, builder)
     env.declare_fn("init_nebula", T_VOID, [])
     env.declare_fn("printf", T_VOID, [T_VOID_PTR], var_arg=True)
     env.declare_fn("read_file", ir.PointerType(T_I8), [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn("random_bool", T_BOOL, [])
 
     env.call("init_nebula", [])
 
@@ -116,6 +127,8 @@ def compile_main_func():
 
     file_contents = call_read_file(env, "README.rst", "r")
     call_print_ptr(env, file_contents)
+
+    compile_if(env)
 
     builder.ret(ir.Constant(T_I32, 0))
 
@@ -169,8 +182,6 @@ def main():
     # str_mod = compile_str_func("say_hello", "hello, world!\n")
     # str_mod = compile_ir(engine, str(str_mod))
     # main_mod.link_in(str_mod, preserve=True)
-
-    # print(main_mod)
 
 if __name__ == '__main__':
     main()
