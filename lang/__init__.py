@@ -81,11 +81,27 @@ def call_read_file(env, path, mode):
     return env.call("read_file", [path_arg, mode_arg])
 
 class Environment:
-    def __init__(self, module, fn, builder):
+    def __init__(self, module, fn):
         self.module = module
-        self.builder = builder
         self.fn = fn
         self.lib = dict()
+        self.blocks = dict()
+        self.builders = dict()
+        self.current_block = None
+        self.builder = None
+
+    def switch_block(self, name):
+        block = self.blocks[name]
+        self.current_block = name
+        self.builder = self.builders[name]
+        self.builder.position_at_end(block)
+        return block
+
+    def add_block(self, name):
+        block = self.fn.append_basic_block(name)
+        self.blocks[name] = block
+        self.builders[name] = ir.IRBuilder(block)
+        return block
 
     def declare_fn(self, name, return_type, arg_types, **kwargs):
         self.lib[name] = ir.Function(
@@ -95,7 +111,8 @@ class Environment:
         )
 
     def call(self, name, args):
-        return self.builder.call(self.lib[name], args)
+        return self.builders[self.current_block].call(
+            self.lib[name], args)
 
 def compile_if(env):
     condition = env.call("random_bool", [])
@@ -105,17 +122,34 @@ def compile_if(env):
         with otherwise:
             call_print_str(env, "false\n")
 
+def compile_loop(env):
+    loop_block = env.add_block('loop')
+    exit_block = env.add_block('exit')
+
+    previous_block = env.current_block
+    env.switch_block('exit')
+    call_print_str(env, 'done looping\n')
+    env.builder.ret(ir.Constant(T_I32, 0))
+
+    env.switch_block('loop')
+    call_print_str(env, 'looping...\n')
+    condition = env.call("random_bool", [])
+    env.builder.cbranch(condition, loop_block, exit_block)
+
+    env.switch_block(previous_block)
+    env.builder.branch(loop_block)
+
 def compile_main_func():
-    module = ir.Module(name=__file__)
+    module = ir.Module(name='main')
     module.triple = llvm.get_default_triple()
 
     f_type = ir.FunctionType(T_I32, [])
     func = ir.Function(module, f_type, name="main")
 
-    block = func.append_basic_block(name="entry")
-    builder = ir.IRBuilder(block)
+    env = Environment(module, func)
+    block = env.add_block('entry')
+    env.switch_block('entry')
 
-    env = Environment(module, func, builder)
     env.declare_fn("init_nebula", T_VOID, [])
     env.declare_fn("printf", T_VOID, [T_VOID_PTR], var_arg=True)
     env.declare_fn("read_file", ir.PointerType(T_I8), [T_VOID_PTR, T_VOID_PTR])
@@ -128,9 +162,11 @@ def compile_main_func():
     file_contents = call_read_file(env, "README.rst", "r")
     call_print_ptr(env, file_contents)
 
-    compile_if(env)
+    # compile_if(env)
 
-    builder.ret(ir.Constant(T_I32, 0))
+    compile_loop(env)
+
+    # env.builder.ret(ir.Constant(T_I32, 0))
 
     return module
 
@@ -174,6 +210,7 @@ def main():
     engine = compile_execution_engine()
 
     main_mod = compile_main_func()
+    # print(main_mod)
     main_mod = compile_ir(engine, str(main_mod))
     # print(main_mod)
     compile_binary(main_mod)
