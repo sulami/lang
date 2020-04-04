@@ -85,8 +85,12 @@ class Environment:
         self.builder = builder
         self.lib = dict()
 
-    def add_func(self, name, func):
-        self.lib[name] = func
+    def declare_fn(self, name, return_type, arg_types, **kwargs):
+        self.lib[name] = ir.Function(
+            self.module,
+            ir.FunctionType(return_type, arg_types, **kwargs),
+            name=name
+        )
 
     def call(self, name, args):
         return self.builder.call(self.lib[name], args)
@@ -102,19 +106,9 @@ def compile_main_func():
     builder = ir.IRBuilder(block)
 
     env = Environment(module, builder)
-    env.add_func("init_nebula",
-                 ir.Function(module,
-                             ir.FunctionType(T_VOID, []),
-                             name="init_nebula"))
-    env.add_func("printf",
-                 ir.Function(module,
-                             ir.FunctionType(T_VOID, [T_VOID_PTR], var_arg=True),
-                             name="printf"))
-    env.add_func("read_file",
-                 ir.Function(module,
-                             ir.FunctionType(ir.PointerType(T_I8),
-                                             [T_VOID_PTR, T_VOID_PTR]),
-                             name="read_file"))
+    env.declare_fn("init_nebula", T_VOID, [])
+    env.declare_fn("printf", T_VOID, [T_VOID_PTR], var_arg=True)
+    env.declare_fn("read_file", ir.PointerType(T_I8), [T_VOID_PTR, T_VOID_PTR])
 
     env.call("init_nebula", [])
 
