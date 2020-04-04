@@ -1,5 +1,8 @@
 __version__ = '0.1.0'
 
+import subprocess
+import tempfile
+
 from llvmlite import ir
 import llvmlite.binding as llvm
 
@@ -76,7 +79,7 @@ def compile_str_func(module, name, s):
     builder = ir.IRBuilder(block)
 
     s = ir.Constant(s_type, [ord(c) for c in s])
-    sc = compile_syscall(builder, s)
+    # sc = compile_syscall(builder, s)
 
     builder.ret(s)
 
@@ -110,8 +113,21 @@ def main():
     # str_mod = compile_ir(engine, str(str_mod))
     # main_mod.link_in(str_mod, preserve=True)
 
-    print(main_mod)
-    # deinit_llvm()
+    # print(main_mod)
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix=".ll") as tmp_llvm_ir:
+        with tempfile.NamedTemporaryFile(mode='wb', suffix=".o") as tmp_obj:
+            tmp_llvm_ir.write(str(main_mod))
+            tmp_llvm_ir.flush()
+            subprocess.run(["/usr/local/opt/llvm/bin/llc",
+                            "--filetype=obj",
+                            "-o=" + tmp_obj.name,
+                            tmp_llvm_ir.name],
+                           check=True)
+            subprocess.run(["cc",
+                            "-o", "out",
+                            tmp_obj.name],
+                           check=True)
 
 if __name__ == '__main__':
     main()
