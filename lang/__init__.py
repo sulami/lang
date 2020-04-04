@@ -61,6 +61,32 @@ def compile_print_func(module, builder, string):
                              name="print")
     builder.call(print_func, [s_ptr])
 
+def compile_ptr_print_func(module, builder, ptr):
+    print_func = ir.Function(module,
+                             ir.FunctionType(T_VOID, [ir.PointerType(T_I8)]),
+                             name="print")
+    builder.call(print_func, [ptr])
+
+def compile_read_file_func(module, builder, path, mode):
+    path += '\0'
+    path_type = ir.ArrayType(T_I8, len(path))
+    path_ptr = builder.alloca(path_type)
+    path_const = ir.Constant(path_type, [ord(c) for c in path])
+    builder.store(path_const, path_ptr)
+
+    mode += '\0'
+    mode_type = ir.ArrayType(T_I8, len(mode))
+    mode_ptr = builder.alloca(mode_type)
+    mode_const = ir.Constant(mode_type, [ord(c) for c in mode])
+    builder.store(mode_const, mode_ptr)
+
+    ext_func = ir.Function(module,
+                           ir.FunctionType(ir.PointerType(T_I8),
+                                           [path_type.as_pointer(),
+                                            mode_type.as_pointer()]),
+                           name="read_file")
+    return builder.call(ext_func, [path_ptr, mode_ptr])
+
 def compile_main_func():
     module = ir.Module(name=__file__)
     module.triple = llvm.get_default_triple()
@@ -76,7 +102,10 @@ def compile_main_func():
                            name="init_nebula")
     builder.call(lib_func, [])
 
-    compile_print_func(module, builder, "Printing a long string here.")
+    # compile_print_func(module, builder, "Printing a long string here.")
+
+    file_contents = compile_read_file_func(module, builder, "README.rst", "r")
+    compile_ptr_print_func(module, builder, file_contents)
 
     builder.ret(ir.Constant(T_I32, 42))
 
@@ -84,6 +113,7 @@ def compile_main_func():
 
 def compile_nebula():
     print("Compiling nebula...")
+    # TODO don't recompile if it's current
     subprocess.run(["cc",
                     "-Wall",
                     "-shared",
@@ -109,6 +139,7 @@ def compile_binary(module):
             subprocess.run(["cc",
                             "-Wall",
                             "-o", "out",
+                            # "-O3",
                             "-L/Users/sulami/build/lang",
                             "-lnebula",
                             tmp_obj.name],
