@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <time.h>
 
 void init_nebula() {
   puts("Nebula initalised.");
+  srand(time(NULL));
 }
 
 void print(char* s) {
@@ -20,6 +22,5 @@ char* read_file(const char* file_name, const char* mode) {
 }
 
 bool random_bool() {
-  srand(1);
-  return rand() % 2;
+  return (rand() % 2);
 }
