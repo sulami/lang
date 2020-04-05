@@ -1,3 +1,5 @@
+;; This is a comment
+
 (printf "Hello from Lisp!\n")
 
 (printf "Printing some unicode: Hélèneちゃんは%sですね\n" "可愛い")

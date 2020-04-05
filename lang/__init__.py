@@ -326,12 +326,20 @@ def parse(unparsed, depth=0):
     The top level is always a list.
     """
     ast = []
+    inside_comment = False
     inside_word = False
     inside_string = False
     while unparsed:
         c = unparsed[0]
         unparsed = unparsed[1:]
-        if '"' == c:
+        if inside_comment:
+            if '\n' == c:
+                inside_comment = False
+            else:
+                continue
+        elif ';' == c:
+            inside_comment = True
+        elif '"' == c:
             if inside_string:
                 ast[-1] += c
             else:
