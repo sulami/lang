@@ -14,6 +14,7 @@ T_I64 = ir.IntType(64)
 T_I32 = ir.IntType(32)
 T_I8 = ir.IntType(8)
 T_BOOL = ir.IntType(1)
+T_F32 = ir.FloatType()
 
 # Values
 NULL_PTR = T_I32(0).inttoptr(T_VOID_PTR)
@@ -125,14 +126,6 @@ class Environment:
         return self.builders[self.current_block].call(
             self.lib[name], args)
 
-def compile_if(env):
-    condition = env.call("random_bool", [])
-    with env.builder.if_else(condition) as (then, otherwise):
-        with then:
-            call_print_str(env, "true\n")
-        with otherwise:
-            call_print_str(env, "false\n")
-
 def compile_loop(env):
     loop_block = env.add_block('loop')
     exit_block = env.add_block('exit')
@@ -193,9 +186,6 @@ def compile_main_func():
     file_contents = call_read_file(env, "README.rst", "r")
     call_print_ptr(env, file_contents)
 
-    call_print_str(env, "Here is a random boolean:\n")
-    compile_if(env)
-
     call_print_str(env, "Here is a loop:\n")
     compile_loop(env)
 
@@ -238,8 +228,26 @@ def compile_binary(module):
                             "nebula.o",],
                            check=True)
 
-def compile_function_call(env, expression, args):
-    return env.call(expression, args)
+def compile_if(env, expression, depth=0):
+    assert 3 == len(expression), 'if takes exactly 3 arguments'
+    a, b, c = expression
+    condition = compile_expression(env, a, depth=depth+1)
+    with env.builder.if_else(condition) as (then, otherwise):
+        with then:
+            compile_expression(env, b, depth=depth+1)
+        with otherwise:
+            compile_expression(env, c, depth=depth+1)
+
+def compile_function_call(env, expression, depth=0):
+    if 'if' == expression[0]:
+        return compile_if(env, expression[1:], depth=depth+1)
+
+    # else: function call
+    # TODO currently only static function names
+    args = []
+    for exp in expression[1:]:
+        args += [compile_expression(env, exp, depth=depth+1)]
+    return env.call(expression[0], args)
 
 def compile_constant_string(env, expression):
     # Strip quotation marks
@@ -251,18 +259,27 @@ def compile_constant_string(env, expression):
 def compile_constant_int(env, expression):
     return ir.Constant(T_I32, int(expression))
 
+def compile_constant_float(env, expression):
+    # FIXME something is up, it seems to be zeroed.
+    return ir.Constant(T_F32, float(expression))
+
+def compile_constant_bool(env, expression):
+    return ir.Constant(T_BOOL, 'true' == expression)
+
 def compile_expression(env, expression, depth=0):
     print(' ' * (depth + 1) + 'Compiling expression: ' + str(expression))
 
     if isinstance(expression, list):
         # function call
-        args = []
-        for exp in expression[1:]:
-            args += [compile_expression(env, exp, depth=depth+1)]
-        return compile_function_call(env, expression[0], args)
+        return compile_function_call(env, expression, depth)
+    elif expression in ['true', 'false']:
+        return compile_constant_bool(env, expression)
     elif '"' == expression[0]:
         # constant string
         return compile_constant_string(env, expression)
+    elif '.' in expression:
+        # constant float
+        return compile_constant_float(env, expression)
     else:
         # constant int
         return compile_constant_int(env, expression)
@@ -355,7 +372,9 @@ def main():
         _, ast = parse(fp.read())
     # print(ast)
     main_mod = compile_ast(ast)
+    # print(main_mod)
     main_mod = compile_ir(engine, str(main_mod))
+    # print(main_mod)
     compile_binary(main_mod)
 
     # this works, but I don't know how to call it then.
