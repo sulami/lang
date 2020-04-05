@@ -15,6 +15,7 @@ T_I32 = ir.IntType(32)
 T_I8 = ir.IntType(8)
 T_BOOL = ir.IntType(1)
 T_F32 = ir.FloatType()
+T_F64 = ir.DoubleType()
 
 # Values
 NULL_PTR = T_I32(0).inttoptr(T_VOID_PTR)
@@ -244,6 +245,8 @@ def compile_function_call(env, expression, depth=0):
 
     # else: function call
     # TODO currently only static function names
+    # TODO we might want to cast argument pointers to the correct
+    # types if we know them
     args = []
     for exp in expression[1:]:
         args += [compile_expression(env, exp, depth=depth+1)]
@@ -260,8 +263,9 @@ def compile_constant_int(env, expression):
     return ir.Constant(T_I32, int(expression))
 
 def compile_constant_float(env, expression):
-    # FIXME something is up, it seems to be zeroed.
-    return ir.Constant(T_F32, float(expression))
+    # FIXME smaller floats aren't passed corretly to printf, resulting
+    # in misread values.
+    return ir.Constant(T_F64, float(expression))
 
 def compile_constant_bool(env, expression):
     return ir.Constant(T_BOOL, 'true' == expression)
