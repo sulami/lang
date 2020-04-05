@@ -16,3 +16,10 @@
     (c/printf "If is false\n"))
 
 nil ;; is a value as well
+
+;; Maths operators are builtin as well
+(c/printf "Calulcations: %d, %d, %d, %d\n"
+          (+ 10 3)
+          (- 10 3)
+          (* 10 3)
+          (/ 10 3))

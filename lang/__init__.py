@@ -184,9 +184,27 @@ def compile_if(env, expression, depth=0):
         with otherwise:
             compile_expression(env, c, depth=depth+1)
 
+def compile_native_op(env, expression, depth=0):
+    # XXX currently only 2-arity
+    assert 3 == len(expression), expression[0] + ' takes exactly 2 arguments'
+    a, b, c = expression
+    lhs = compile_expression(env, b, depth=depth+1)
+    rhs = compile_expression(env, c, depth=depth+1)
+    if '+' == a:
+        return env.builder.add(lhs, rhs)
+    if '-' == a:
+        return env.builder.sub(lhs, rhs)
+    if '*' == a:
+        return env.builder.mul(lhs, rhs)
+    if '/' == a:
+        return env.builder.sdiv(lhs, rhs)
+
 def compile_function_call(env, expression, depth=0):
     if 'if' == expression[0]:
         return compile_if(env, expression[1:], depth=depth+1)
+
+    if expression[0] in ['+', '-', '*', '/']:
+        return compile_native_op(env, expression, depth=depth+1)
 
     # else: function call
     # TODO currently only static function names
