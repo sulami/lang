@@ -214,7 +214,6 @@ def compile_nebula():
                     "-c",
                     "-o", "nebula.o",
                     "lang/nebula.c"])
-    llvm.load_library_permanently("libnebula.so")
 
 def compile_binary(module):
     with tempfile.NamedTemporaryFile(mode='w', suffix=".ll") as tmp_llvm_ir:
