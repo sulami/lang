@@ -173,9 +173,9 @@ def compile_nebula():
     # TODO don't recompile if it's current
     subprocess.run(["cc",
                     "-Wall",
-                    "-shared",
                     "-fpic",
-                    "-o", "libnebula.so",
+                    "-c",
+                    "-o", "nebula.o",
                     "lang/nebula.c"])
     llvm.load_library_permanently("libnebula.so")
 
@@ -197,9 +197,8 @@ def compile_binary(module):
                             "-Wall",
                             "-o", "out",
                             # "-O3",
-                            "-L/Users/sulami/build/lang",
-                            "-lnebula",
-                            tmp_obj.name],
+                            tmp_obj.name,
+                            "nebula.o",],
                            check=True)
 
 def main():
