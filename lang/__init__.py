@@ -244,7 +244,9 @@ def compile_function_call(env, expression, args):
 def compile_constant_string(env, expression):
     # Strip quotation marks
     # Convert escape sequences
-    return store_string(env, expression[1:-1].replace('\\n', '\n'))
+    # XXX eval is the hacky way of accomplishing this.
+    # It's fine because we can trust our input.
+    return store_string(env, eval(expression))
 
 def compile_constant_int(env, expression):
     return ir.Constant(T_I32, int(expression))
