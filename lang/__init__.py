@@ -58,9 +58,6 @@ def compile_ir(engine, llvm_ir):
     engine.run_static_constructors()
     return mod
 
-def load_external_function(module, type_spec, name):
-    return ir.Function(module, type_spec, name=name)
-
 def store_value(env, value):
     """
     Compiles a set of instructions to store a value and returns an
@@ -80,18 +77,6 @@ def store_string(env, string):
     s_type = ir.ArrayType(T_I8, len(byte_array))
     s = ir.Constant(s_type, byte_array)
     return store_value(env, s)
-
-def call_print_ptr(env, ptr):
-    env.call("printf", [ptr])
-
-def call_print_str(env, string):
-    ptr = store_string(env, string)
-    call_print_ptr(env, ptr)
-
-def call_read_file(env, path, mode):
-    path_arg = store_string(env, path)
-    mode_arg = store_string(env, mode)
-    return env.call("read_file", [path_arg, mode_arg])
 
 class Environment:
     def __init__(self, module, fn):
@@ -117,7 +102,7 @@ class Environment:
         return block
 
     def declare_fn(self, name, return_type, arg_types, **kwargs):
-        self.lib[name] = ir.Function(
+        self.lib['c/' + name] = ir.Function(
             self.module,
             ir.FunctionType(return_type, arg_types, **kwargs),
             name=name
@@ -127,75 +112,35 @@ class Environment:
         return self.builders[self.current_block].call(
             self.lib[name], args)
 
-def compile_loop(env):
-    loop_block = env.add_block('loop')
-    exit_block = env.add_block('exit')
+# def compile_loop(env):
+#     loop_block = env.add_block('loop')
+#     exit_block = env.add_block('exit')
 
-    env.builder.branch(loop_block)
+#     env.builder.branch(loop_block)
 
-    env.switch_block('loop')
-    call_print_str(env, 'looping...\n')
-    condition = env.call("random_bool", [])
-    env.builder.cbranch(condition, loop_block, exit_block)
+#     env.switch_block('loop')
+#     call_print_str(env, 'looping...\n')
+#     condition = env.call("random_bool", [])
+#     env.builder.cbranch(condition, loop_block, exit_block)
 
-    env.switch_block('exit')
-    call_print_str(env, 'done looping\n')
+#     env.switch_block('exit')
+#     call_print_str(env, 'done looping\n')
 
-def compile_cons(env):
-    l = NULL_PTR
-    for c in ['first', 'second', 'third']:
-        v = store_string(env, c)
-        l = env.call('cons', [v, l])
+# def compile_cons(env):
+#     l = NULL_PTR
+#     for c in ['first', 'second', 'third']:
+#         v = store_string(env, c)
+#         l = env.call('cons', [v, l])
 
-    car = env.call('car', [l])
-    cadr = env.call('car', [env.call('cdr', [l])])
-    caddr = env.call('car', [env.call('cdr', [env.call('cdr', [l])])])
-    call_print_ptr(env, car)
-    call_print_str(env, '\n')
-    call_print_ptr(env, cadr)
-    call_print_str(env, '\n')
-    call_print_ptr(env, caddr)
-    call_print_str(env, '\n')
-
-def compile_main_func():
-    module = ir.Module(name='main')
-    module.triple = llvm.get_default_triple()
-
-    f_type = ir.FunctionType(T_I32, [])
-    func = ir.Function(module, f_type, name="main")
-
-    env = Environment(module, func)
-    block = env.add_block('entry')
-    env.switch_block('entry')
-
-    # C stdlib
-    env.declare_fn("printf", T_VOID, [T_VOID_PTR], var_arg=True)
-
-    # libnebula
-    env.declare_fn("init_nebula", T_VOID, [])
-    env.declare_fn("read_file", ir.PointerType(T_I8), [T_VOID_PTR, T_VOID_PTR])
-    env.declare_fn("random_bool", T_BOOL, [])
-    env.declare_fn("cons", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
-    env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
-    env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])
-
-    env.call("init_nebula", [])
-
-    call_print_str(env, "Printing a long string here.\nWith unicode: Hélène ヘレンちゃんは可愛いですね\n")
-
-    call_print_str(env, "Here is some file content:\n")
-    file_contents = call_read_file(env, "README.rst", "r")
-    call_print_ptr(env, file_contents)
-
-    call_print_str(env, "Here is a loop:\n")
-    compile_loop(env)
-
-    call_print_str(env, "Here is a linked list:\n")
-    compile_cons(env)
-
-    env.builder.ret(ir.Constant(T_I32, 0))
-
-    return module
+#     car = env.call('car', [l])
+#     cadr = env.call('car', [env.call('cdr', [l])])
+#     caddr = env.call('car', [env.call('cdr', [env.call('cdr', [l])])])
+#     call_print_ptr(env, car)
+#     call_print_str(env, '\n')
+#     call_print_ptr(env, cadr)
+#     call_print_str(env, '\n')
+#     call_print_ptr(env, caddr)
+#     call_print_str(env, '\n')
 
 def compile_nebula():
     print("Compiling nebula...")
@@ -316,7 +261,7 @@ def compile_ast(ast):
     env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
     env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])
 
-    env.call("init_nebula", [])
+    env.call("c/init_nebula", [])
 
     for expression in ast:
         compile_expression(env, expression)
