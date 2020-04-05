@@ -238,6 +238,35 @@ def compile_binary(module):
                             "nebula.o",],
                            check=True)
 
+def parse(unparsed, depth=0):
+    """
+    Parse nested S-expressions. Raises for unbalanced parens.
+    Returns a tuple of (unparsed, AST).
+    The top level is always a list.
+    """
+    ast = []
+    inside_word = False
+    while unparsed:
+        c = unparsed[0]
+        unparsed = unparsed[1:]
+        if '(' == c:
+            unparsed, inner_ast = parse(unparsed, depth=depth+1)
+            ast += [inner_ast]
+        elif ')' == c:
+            if depth == 0:
+                raise Exception('Unexpected ) while parsing')
+            return unparsed, ast
+        elif c.isspace():
+            inside_word = False
+        elif inside_word:
+            ast[-1] += c
+        else:
+            inside_word = True
+            ast += c
+    if depth != 0:
+        raise Exception('Unexpected EOF while parsing')
+    return unparsed, ast
+
 def main():
     init_llvm()
     compile_nebula()
