@@ -14,6 +14,9 @@ T_I32 = ir.IntType(32)
 T_I8 = ir.IntType(8)
 T_BOOL = ir.IntType(1)
 
+# Values
+NULL_PTR = T_I32(0).inttoptr(T_VOID_PTR)
+
 def init_llvm():
     """Setup the LLVM core."""
     llvm.initialize()
@@ -55,6 +58,15 @@ def compile_ir(engine, llvm_ir):
 def load_external_function(module, type_spec, name):
     return ir.Function(module, type_spec, name=name)
 
+def store_value(env, value):
+    """
+    Compiles a set of instructions to store a value and returns an
+    anonymised pointer to it.
+    """
+    ptr = env.builder.alloca(value.type)
+    env.builder.store(value, ptr)
+    return env.builder.bitcast(ptr, T_VOID_PTR)
+
 def store_string(env, string):
     """
     Compiles a set of instructions to store a string and returns an
@@ -64,9 +76,7 @@ def store_string(env, string):
     byte_array = bytearray(string.encode('utf8'))
     s_type = ir.ArrayType(T_I8, len(byte_array))
     s = ir.Constant(s_type, byte_array)
-    s_ptr = env.builder.alloca(s_type)
-    env.builder.store(s, s_ptr)
-    return env.builder.bitcast(s_ptr, T_VOID_PTR)
+    return store_value(env, s)
 
 def call_print_ptr(env, ptr):
     env.call("printf", [ptr])
@@ -136,6 +146,22 @@ def compile_loop(env):
     env.switch_block('exit')
     call_print_str(env, 'done looping\n')
 
+def compile_cons(env):
+    l = NULL_PTR
+    for c in ['first', 'second', 'third']:
+        v = store_string(env, c)
+        l = env.call('cons', [v, l])
+
+    car = env.call('car', [l])
+    cadr = env.call('car', [env.call('cdr', [l])])
+    caddr = env.call('car', [env.call('cdr', [env.call('cdr', [l])])])
+    call_print_ptr(env, car)
+    call_print_str(env, '\n')
+    call_print_ptr(env, cadr)
+    call_print_str(env, '\n')
+    call_print_ptr(env, caddr)
+    call_print_str(env, '\n')
+
 def compile_main_func():
     module = ir.Module(name='main')
     module.triple = llvm.get_default_triple()
@@ -147,10 +173,16 @@ def compile_main_func():
     block = env.add_block('entry')
     env.switch_block('entry')
 
-    env.declare_fn("init_nebula", T_VOID, [])
+    # C stdlib
     env.declare_fn("printf", T_VOID, [T_VOID_PTR], var_arg=True)
+
+    # libnebula
+    env.declare_fn("init_nebula", T_VOID, [])
     env.declare_fn("read_file", ir.PointerType(T_I8), [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn("random_bool", T_BOOL, [])
+    env.declare_fn("cons", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
+    env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])
 
     env.call("init_nebula", [])
 
@@ -162,8 +194,13 @@ def compile_main_func():
 
     call_print_str(env, "Here is a random boolean:\n")
     compile_if(env)
+
     call_print_str(env, "Here is a loop:\n")
     compile_loop(env)
+
+    call_print_str(env, "Here is a linked list:\n")
+    compile_cons(env)
+
     env.builder.ret(ir.Constant(T_I32, 0))
 
     return module
