@@ -186,7 +186,7 @@ def compile_main_func():
 
     env.call("init_nebula", [])
 
-    call_print_str(env, "Printing a long string here.\nWith unicode: Hélène\n")
+    call_print_str(env, "Printing a long string here.\nWith unicode: Hélène ヘレンちゃんは可愛いですね\n")
 
     call_print_str(env, "Here is some file content:\n")
     file_contents = call_read_file(env, "README.rst", "r")
