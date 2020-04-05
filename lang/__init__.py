@@ -1,6 +1,7 @@
 __version__ = '0.1.0'
 
 import subprocess
+import sys
 import tempfile
 
 from llvmlite import ir
@@ -237,6 +238,64 @@ def compile_binary(module):
                             "nebula.o",],
                            check=True)
 
+def compile_function_call(env, expression, args):
+    return env.call(expression, args)
+
+def compile_constant_string(env, expression):
+    # Strip quotation marks
+    # Convert escape sequences
+    return store_string(env, expression[1:-1].replace('\\n', '\n'))
+
+def compile_constant_int(env, expression):
+    return ir.Constant(T_I32, int(expression))
+
+def compile_expression(env, expression, depth=0):
+    print(' ' * (depth + 1) + 'Compiling expression: ' + str(expression))
+
+    if isinstance(expression, list):
+        # function call
+        args = []
+        for exp in expression[1:]:
+            args += [compile_expression(env, exp, depth=depth+1)]
+        return compile_function_call(env, expression[0], args)
+    elif '"' == expression[0]:
+        # constant string
+        return compile_constant_string(env, expression)
+    else:
+        # constant int
+        return compile_constant_int(env, expression)
+
+def compile_ast(ast):
+    print('Compiling application...')
+    module = ir.Module(name='main')
+    module.triple = llvm.get_default_triple()
+
+    f_type = ir.FunctionType(T_I32, [])
+    func = ir.Function(module, f_type, name="main")
+
+    env = Environment(module, func)
+    block = env.add_block('entry')
+    env.switch_block('entry')
+
+    # C stdlib
+    env.declare_fn("printf", T_VOID, [T_VOID_PTR], var_arg=True)
+
+    # libnebula
+    env.declare_fn("init_nebula", T_VOID, [])
+    env.declare_fn("read_file", ir.PointerType(T_I8), [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn("random_bool", T_BOOL, [])
+    env.declare_fn("cons", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
+    env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])
+
+    env.call("init_nebula", [])
+
+    for expression in ast:
+        compile_expression(env, expression)
+
+    env.builder.ret(ir.Constant(T_I32, 0))
+    return module
+
 def parse(unparsed, depth=0):
     """
     Parse nested S-expressions. Raises for unbalanced parens.
@@ -245,10 +304,19 @@ def parse(unparsed, depth=0):
     """
     ast = []
     inside_word = False
+    inside_string = False
     while unparsed:
         c = unparsed[0]
         unparsed = unparsed[1:]
-        if '(' == c:
+        if '"' == c:
+            if inside_string:
+                ast[-1] += c
+            else:
+                ast += [c]
+            inside_string = not inside_string
+        elif inside_string:
+            ast[-1] += c
+        elif '(' == c:
             unparsed, inner_ast = parse(unparsed, depth=depth+1)
             ast += [inner_ast]
         elif ')' == c:
@@ -271,16 +339,28 @@ def main():
     compile_nebula()
     engine = compile_execution_engine()
 
-    main_mod = compile_main_func()
-    # print(main_mod)
+    if 1 == len(sys.argv):
+        # run built-in tests
+        main_mod = compile_main_func()
+        # print(main_mod)
+        main_mod = compile_ir(engine, str(main_mod))
+        # print(main_mod)
+        compile_binary(main_mod)
+        return
+
+    ast = None
+    with open(sys.argv[1], 'r') as fp:
+        _, ast = parse(fp.read())
+    # print(ast)
+    main_mod = compile_ast(ast)
     main_mod = compile_ir(engine, str(main_mod))
-    # print(main_mod)
     compile_binary(main_mod)
 
     # this works, but I don't know how to call it then.
     # str_mod = compile_str_func("say_hello", "hello, world!\n")
     # str_mod = compile_ir(engine, str(str_mod))
     # main_mod.link_in(str_mod, preserve=True)
+    print('Compiled successfully!')
 
 if __name__ == '__main__':
     main()
