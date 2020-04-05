@@ -13,3 +13,5 @@
 (if (random_bool)
     (printf "If is true\n")
     (printf "If is false\n"))
+
+nil ;; is a value as well

@@ -270,12 +270,17 @@ def compile_constant_float(env, expression):
 def compile_constant_bool(env, expression):
     return ir.Constant(T_BOOL, 'true' == expression)
 
+def compile_nil(env, expression):
+    return ir.Constant(T_VOID_PTR, NULL_PTR)
+
 def compile_expression(env, expression, depth=0):
     print(' ' * (depth + 1) + 'Compiling expression: ' + str(expression))
 
     if isinstance(expression, list):
         # function call
         return compile_function_call(env, expression, depth)
+    elif 'nil' == expression:
+        return compile_nil(env, expression)
     elif expression in ['true', 'false']:
         return compile_constant_bool(env, expression)
     elif '"' == expression[0]:
