@@ -58,7 +58,7 @@ def compile_ir(engine, llvm_ir):
     engine.run_static_constructors()
     return mod
 
-def store_value(env, value):
+def store_value(env, value, string=False):
     """
     Compiles a set of instructions to store a value and returns an
     anonymised pointer to it.
@@ -67,16 +67,14 @@ def store_value(env, value):
     env.builder.store(value, ptr)
     return env.builder.bitcast(ptr, T_VOID_PTR)
 
-def store_string(env, string):
+def make_string(value):
     """
-    Compiles a set of instructions to store a string and returns an
-    anonymised pointer to it. Properly deals with unicode.
+    Returns a string constant. Encodes unicode & appends a zero byte.
     """
-    string += '\0'
-    byte_array = bytearray(string.encode('utf8'))
-    s_type = ir.ArrayType(T_I8, len(byte_array))
-    s = ir.Constant(s_type, byte_array)
-    return store_value(env, s)
+    value += '\0'
+    byte_array = bytearray(value.encode('utf8'))
+    value_type = ir.ArrayType(T_I8, len(byte_array))
+    return ir.Constant(value_type, byte_array)
 
 class Environment:
     def __init__(self, module, fn):
@@ -129,7 +127,7 @@ class Environment:
 # def compile_cons(env):
 #     l = NULL_PTR
 #     for c in ['first', 'second', 'third']:
-#         v = store_string(env, c)
+#         v = store_value(env, make_string(c))
 #         l = env.call('cons', [v, l])
 
 #     car = env.call('car', [l])
@@ -175,8 +173,8 @@ def compile_binary(module):
                            check=True)
 
 def compile_if(env, expression, depth=0):
-    assert 3 == len(expression), 'if takes exactly 3 arguments'
-    a, b, c = expression
+    assert 4 == len(expression), 'if takes exactly 3 arguments'
+    _, a, b, c = expression
     condition = compile_expression(env, a, depth=depth+1)
     with env.builder.if_else(condition) as (then, otherwise):
         with then:
@@ -199,9 +197,16 @@ def compile_native_op(env, expression, depth=0):
     if '/' == a:
         return env.builder.sdiv(lhs, rhs)
 
+def compile_box(env, expression, depth=0):
+    assert 2 == len(expression), 'box takes exactly 1 argument'
+    return store_value(env, compile_expression(env, expression[1], depth=depth+1))
+
 def compile_function_call(env, expression, depth=0):
+    if 'box' == expression[0]:
+        return compile_box(env, expression, depth=depth+1)
+
     if 'if' == expression[0]:
-        return compile_if(env, expression[1:], depth=depth+1)
+        return compile_if(env, expression, depth=depth+1)
 
     if expression[0] in ['+', '-', '*', '/']:
         return compile_native_op(env, expression, depth=depth+1)
@@ -213,6 +218,7 @@ def compile_function_call(env, expression, depth=0):
     args = []
     for exp in expression[1:]:
         args += [compile_expression(env, exp, depth=depth+1)]
+    fn = env.lib[expression[0]]
     return env.call(expression[0], args)
 
 def compile_constant_string(env, expression):
@@ -220,7 +226,7 @@ def compile_constant_string(env, expression):
     # Convert escape sequences
     # XXX eval is the hacky way of accomplishing this.
     # It's fine because we can trust our input.
-    return store_string(env, eval(expression))
+    return store_value(env, make_string(eval(expression)))
 
 def compile_constant_int(env, expression):
     return ir.Constant(T_I32, int(expression))
@@ -278,6 +284,9 @@ def compile_ast(ast):
     env.declare_fn("cons", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
     env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])
+    env.declare_fn("alist", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn("aget", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn("unbox", T_VOID_PTR, [T_VOID_PTR])
 
     env.call("c/init_nebula", [])
 
@@ -337,15 +346,6 @@ def main():
     init_llvm()
     compile_nebula()
     engine = compile_execution_engine()
-
-    if 1 == len(sys.argv):
-        # run built-in tests
-        main_mod = compile_main_func()
-        # print(main_mod)
-        main_mod = compile_ir(engine, str(main_mod))
-        # print(main_mod)
-        compile_binary(main_mod)
-        return
 
     ast = None
     with open(sys.argv[1], 'r') as fp:

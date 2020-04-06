@@ -23,3 +23,12 @@ nil ;; is a value as well
           (- 10 3)
           (* 10 3)
           (/ 10 3)) ;; Integer division
+
+;; Cons lists currently require explicit boxing & unboxing :/
+(c/printf "A list: %d\n"
+          (c/unbox (c/car (c/cons (box 3) nil))))
+
+;; But not for strings, because strings are boxed implicitly.
+;; Yay for leaky abstractions.
+(c/printf "Another list: %s\n"
+          (c/car (c/cons "foo" nil)))

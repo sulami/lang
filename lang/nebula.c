@@ -63,3 +63,34 @@ void* car(struct cons_cell* c) {
 struct cons_cell* cdr(struct cons_cell* c) {
   return c->cdr;
 }
+
+/*
+ * Association lists
+ */
+
+struct cons_cell* alist(void* key, void* value, struct cons_cell* tail) {
+  if ((NULL == key) || (NULL == value)) {
+    return NULL;
+  }
+
+  struct cons_cell* new_value = cons(value, NULL);
+  struct cons_cell* new_key = cons(key, new_value);
+  return cons(new_key, tail);
+}
+
+void* aget(void* key, struct cons_cell* list) {
+  struct cons_cell* head = list;
+
+  while (NULL != head) {
+    if (key == car(car(list))) {
+      return cdr(car(list));
+    }
+    head = cdr(list);
+  }
+
+  return NULL;
+}
+
+void* unbox(void** ptr) {
+  return *ptr;
+}
