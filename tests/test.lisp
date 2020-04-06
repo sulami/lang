@@ -3,7 +3,7 @@
 ;; C functions are in the c pseudo-namespace.
 (c/printf "Hello from Lisp!\n")
 
-(c/printf "Printing some unicode: Hélèneちゃんは%sですね\n" "可愛い")
+(c/printf "Printing some unicode: %s\n" "今日は")
 
 (c/printf "An integer is: %d\n" 42)
 
@@ -17,9 +17,9 @@
 
 nil ;; is a value as well
 
-;; Maths operators are builtin as well
+;; Maths operators are builtins right now
 (c/printf "Calulcations: %d, %d, %d, %d\n"
           (+ 10 3)
           (- 10 3)
           (* 10 3)
-          (/ 10 3))
+          (/ 10 3)) ;; Integer division
