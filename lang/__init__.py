@@ -1,5 +1,6 @@
 __version__ = '0.1.0'
 
+import re
 import subprocess
 import sys
 import tempfile
@@ -85,6 +86,7 @@ class Environment:
         self.builders = dict()
         self.current_block = None
         self.builder = None
+        self.scopes = []
 
     def switch_block(self, name):
         block = self.blocks[name]
@@ -201,7 +203,35 @@ def compile_box(env, expression, depth=0):
     assert 2 == len(expression), 'box takes exactly 1 argument'
     return store_value(env, compile_expression(env, expression[1], depth=depth+1))
 
+def compile_progn(env, expression, depth=0):
+    retval = None  # TODO should probably be nil instead
+    for exp in expression:
+        retval = compile_expression(env, exp, depth=depth+1)
+    return retval
+
+def compile_let(env, expression, depth=0):
+    assert 3 <= len(expression), 'let takes at least 2 arguments'
+
+    bindings = expression[1]
+    new_scope = dict()
+    for binding in bindings:
+        assert 2 == len(binding), 'let bindings must be exactly 2 elements'
+        k, v = binding
+        new_scope[k] = compile_expression(env, v, depth=depth+1)
+    env.scopes.append(new_scope)
+
+    body = expression[2:]
+    retval = compile_progn(env, body, depth=depth+1)
+    env.scopes.pop()
+    return retval
+
 def compile_function_call(env, expression, depth=0):
+    if 'progn' == expression[0]:
+        return compile_progn(env, expression[1:], depth=depth+1)
+
+    if 'let' == expression[0]:
+        return compile_let(env, expression, depth=depth+1)
+
     if 'box' == expression[0]:
         return compile_box(env, expression, depth=depth+1)
 
@@ -242,6 +272,12 @@ def compile_constant_bool(env, expression):
 def compile_nil(env, expression):
     return ir.Constant(T_VOID_PTR, NULL_PTR)
 
+def compile_symbol(env, expression):
+    for scope in reversed(env.scopes):
+        if expression in scope:
+            return scope[expression]
+    raise Exception('Could not find symbol ' + expression + ' in local scope')
+
 def compile_expression(env, expression, depth=0):
     print(' ' * (depth + 1) + 'Compiling expression: ' + str(expression))
 
@@ -255,12 +291,15 @@ def compile_expression(env, expression, depth=0):
     elif '"' == expression[0]:
         # constant string
         return compile_constant_string(env, expression)
-    elif '.' in expression:
+    elif re.match('^[0-9]+.[0-9]+$',  expression):
         # constant float
         return compile_constant_float(env, expression)
-    else:
+    elif re.match('^[0-9]+$',  expression):
         # constant int
         return compile_constant_int(env, expression)
+    else:
+        # symbol
+        return compile_symbol(env, expression)
 
 def compile_ast(ast):
     print('Compiling application...')

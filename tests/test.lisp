@@ -32,3 +32,17 @@ nil ;; is a value as well
 ;; Yay for leaky abstractions.
 (c/printf "Another list: %s\n"
           (c/car (c/cons "foo" nil)))
+
+(progn
+  (c/printf "We can do several ")
+  (c/printf "operations in one progn\n"))
+
+(let ((x 42))
+  (c/printf "A local binding: %d\n" x))
+
+;; Shadowing local bindings
+(let ((x 1)
+      (y 2))
+  (let ((x 43))
+    (c/printf "A shadowing binding: %d\n" x)
+    (c/printf "This is from a wrapping scope: %d\n" y)))
