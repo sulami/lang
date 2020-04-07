@@ -219,6 +219,9 @@ def compile_native_op(env, expression, depth=0):
         return env.builder.mul(lhs, rhs)
     if '/' == a:
         return env.builder.sdiv(lhs, rhs)
+    if a in ['<', '<=', '==', '!=', '>=', '>']:
+        return env.builder.icmp_signed(a, lhs, rhs)
+    raise Exception('Unhandled native op')
 
 def compile_box(env, expression, depth=0):
     assert 2 == len(expression), 'box takes exactly 1 argument'
@@ -289,7 +292,8 @@ def compile_function_call(env, expression, depth=0):
     if 'if' == expression[0]:
         return compile_if(env, expression, depth=depth+1)
 
-    if expression[0] in ['+', '-', '*', '/']:
+    if expression[0] in ['+', '-', '*', '/',
+                         '<', '<=', '==', '!=', '>=', '>']:
         return compile_native_op(env, expression, depth=depth+1)
 
     # else: function call
