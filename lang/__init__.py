@@ -20,6 +20,7 @@ T_F64 = ir.DoubleType()
 
 # Type mapping
 TYPES = {
+    'void': T_VOID_PTR,
     'int': T_I32,
     'float': T_F64,
     'bool': T_BOOL,
@@ -123,7 +124,13 @@ class Environment:
         )
 
     def call(self, name, args):
-        return self.builder.call(self.lib[name], args)
+        fn = self.lib[name]
+        fn_retval = self.builder.call(fn, args)
+        if T_VOID == fn.ftype.return_type:
+            # Can't return void as a value, so coerce to nil. Only
+            # applicable to C FFI.
+            return ir.Constant(T_VOID_PTR, NULL_PTR)
+        return fn_retval
 
 # def compile_loop(env):
 #     loop_block = env.add_block('loop')
@@ -172,7 +179,8 @@ def compile_binary(module):
                            check=True)
 
 def compile_if(env, expression, depth=0):
-    # TODO doesn't return a value at the moment(?)
+    # XXX if needs to box/unbox its values because the return type
+    # can be varying.
     assert 4 == len(expression), 'if takes exactly 3 arguments'
     _, a, b, c = expression
     condition = compile_expression(env, a, depth=depth+1)
@@ -181,17 +189,21 @@ def compile_if(env, expression, depth=0):
     endif_block = env.add_block('endif')
 
     then_block = env.add_block('then')
-    compile_expression(env, b, depth=depth+1)
+    then_result = compile_expression(env, b, depth=depth+1)
     env.builder.branch(endif_block)
 
     else_block = env.add_block('else')
-    compile_expression(env, c, depth=depth+1)
+    else_result = compile_expression(env, c, depth=depth+1)
     env.builder.branch(endif_block)
 
     with env.builder.goto_block(previous_block):
         env.builder.cbranch(condition, then_block, else_block)
 
     env.builder.position_at_end(endif_block)
+    phi = env.builder.phi(T_VOID_PTR)
+    phi.add_incoming(then_result, then_block)
+    phi.add_incoming(else_result, else_block)
+    return phi
 
 def compile_native_op(env, expression, depth=0):
     # XXX currently only 2-arity

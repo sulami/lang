@@ -15,6 +15,20 @@
     (c/printf "If is true\n")
     (c/printf "If is false\n"))
 
+(defn (void println) ((string s))
+  (c/printf "%s\n" s))
+
+;; If also returns a value
+(println (if (c/random_bool)
+             "returned true"
+             "returned false"))
+
+;; If for non-string types requires boxing
+(c/printf "Boxed if: %d\n"
+          (c/unbox (if (c/random_bool)
+                       (box 3)
+                       (box 4))))
+
 nil ;; is a value as well
 
 ;; Maths operators are builtins right now
