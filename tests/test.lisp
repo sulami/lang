@@ -69,3 +69,5 @@ nil ;; is a value as well
 
 (let ((result (double 7)))
   (c/printf "Double result is: %d\n" result))
+
+(c/printf (c/read_file "README.rst" "r"))
