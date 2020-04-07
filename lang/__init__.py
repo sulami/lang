@@ -18,6 +18,14 @@ T_BOOL = ir.IntType(1)
 T_F32 = ir.FloatType()
 T_F64 = ir.DoubleType()
 
+# Type mapping
+TYPES = {
+    'int': T_I32,
+    'float': T_F64,
+    'bool': T_BOOL,
+    'string': T_VOID_PTR,
+}
+
 # Values
 NULL_PTR = T_I32(0).inttoptr(T_VOID_PTR)
 
@@ -77,40 +85,45 @@ def make_string(value):
     value_type = ir.ArrayType(T_I8, len(byte_array))
     return ir.Constant(value_type, byte_array)
 
+def fq_block_name(fn, block):
+    return fn.name + '__' + block.name
+
 class Environment:
-    def __init__(self, module, fn):
-        self.module = module
-        self.fn = fn
+    def __init__(self, module, block):
+        self.builder = ir.IRBuilder(block)
         self.lib = dict()
-        self.blocks = dict()
-        self.builders = dict()
-        self.current_block = None
-        self.builder = None
+        self.blocks = {
+            fq_block_name(self.builder.function, block): block,
+        }
         self.scopes = []
 
-    def switch_block(self, name):
-        block = self.blocks[name]
-        self.current_block = name
-        self.builder = self.builders[name]
-        self.builder.position_at_end(block)
-        return block
+    def add_fn(self, name, ret_type, arg_types):
+        f_type = ir.FunctionType(ret_type, arg_types)
+        func = ir.Function(self.builder.module, f_type, name=name)
+        self.lib[name] = func
+        entry = self.add_block('entry', fn=func)
+        return func
 
-    def add_block(self, name):
-        block = self.fn.append_basic_block(name)
-        self.blocks[name] = block
-        self.builders[name] = ir.IRBuilder(block)
+    def current_block_name(self):
+        return fq_block_name(self.builder.function, self.builder.block)
+
+    def add_block(self, name, fn=None):
+        fn = fn or self.builder.function
+        block = fn.append_basic_block(name)
+        fqn = fq_block_name(fn, block)
+        self.blocks[fqn] = block
+        self.builder.position_at_start(block)
         return block
 
     def declare_fn(self, name, return_type, arg_types, **kwargs):
         self.lib['c/' + name] = ir.Function(
-            self.module,
+            self.builder.module,
             ir.FunctionType(return_type, arg_types, **kwargs),
             name=name
         )
 
     def call(self, name, args):
-        return self.builders[self.current_block].call(
-            self.lib[name], args)
+        return self.builder.call(self.lib[name], args)
 
 # def compile_loop(env):
 #     loop_block = env.add_block('loop')
@@ -125,22 +138,6 @@ class Environment:
 
 #     env.switch_block('exit')
 #     call_print_str(env, 'done looping\n')
-
-# def compile_cons(env):
-#     l = NULL_PTR
-#     for c in ['first', 'second', 'third']:
-#         v = store_value(env, make_string(c))
-#         l = env.call('cons', [v, l])
-
-#     car = env.call('car', [l])
-#     cadr = env.call('car', [env.call('cdr', [l])])
-#     caddr = env.call('car', [env.call('cdr', [env.call('cdr', [l])])])
-#     call_print_ptr(env, car)
-#     call_print_str(env, '\n')
-#     call_print_ptr(env, cadr)
-#     call_print_str(env, '\n')
-#     call_print_ptr(env, caddr)
-#     call_print_str(env, '\n')
 
 def compile_nebula():
     print("Compiling nebula...")
@@ -175,14 +172,26 @@ def compile_binary(module):
                            check=True)
 
 def compile_if(env, expression, depth=0):
+    # TODO doesn't return a value at the moment(?)
     assert 4 == len(expression), 'if takes exactly 3 arguments'
     _, a, b, c = expression
     condition = compile_expression(env, a, depth=depth+1)
-    with env.builder.if_else(condition) as (then, otherwise):
-        with then:
-            compile_expression(env, b, depth=depth+1)
-        with otherwise:
-            compile_expression(env, c, depth=depth+1)
+
+    previous_block = env.builder.block
+    endif_block = env.add_block('endif')
+
+    then_block = env.add_block('then')
+    compile_expression(env, b, depth=depth+1)
+    env.builder.branch(endif_block)
+
+    else_block = env.add_block('else')
+    compile_expression(env, c, depth=depth+1)
+    env.builder.branch(endif_block)
+
+    with env.builder.goto_block(previous_block):
+        env.builder.cbranch(condition, then_block, else_block)
+
+    env.builder.position_at_end(endif_block)
 
 def compile_native_op(env, expression, depth=0):
     # XXX currently only 2-arity
@@ -225,7 +234,37 @@ def compile_let(env, expression, depth=0):
     env.scopes.pop()
     return retval
 
+def compile_defn(env, expression, depth=0):
+    assert 4 <= len(expression), 'defn takes at least 3 arguments'
+
+    assert 2 == len(expression[1]), 'defn type/name must be exactly 2 elements'
+    ret_type, fn_name = expression[1]
+    ret_type = TYPES[ret_type]
+
+    previous_block = env.current_block_name()
+
+    args = expression[2]
+    arg_types = []
+    for arg in args:
+        assert 2 == len(arg), 'defn arguments must be exactly 2 elements'
+        arg_types.append(TYPES[arg[0]])
+    fn = env.add_fn(fn_name, ret_type, arg_types)
+
+    body = (expression[3:])
+    fn_args = fn.args
+    new_scope = dict(zip ([arg[1] for arg in args], fn.args))
+    env.scopes.append(new_scope)
+    retval = compile_progn(env, body, depth=depth+1)
+    env.builder.ret(retval)
+    env.scopes.pop()
+
+    env.builder.position_at_end(env.blocks[previous_block])
+    return fn
+
 def compile_function_call(env, expression, depth=0):
+    if 'defn' == expression[0]:
+        return compile_defn(env, expression, depth=depth+1)
+
     if 'progn' == expression[0]:
         return compile_progn(env, expression[1:], depth=depth+1)
 
@@ -307,11 +346,9 @@ def compile_ast(ast):
     module.triple = llvm.get_default_triple()
 
     f_type = ir.FunctionType(T_I32, [])
-    func = ir.Function(module, f_type, name="main")
-
-    env = Environment(module, func)
-    block = env.add_block('entry')
-    env.switch_block('entry')
+    main_fn = ir.Function(module, f_type, name='main')
+    main_entry_block = main_fn.append_basic_block('entry')
+    env = Environment(module, main_entry_block)
 
     # C stdlib
     env.declare_fn("printf", T_VOID, [T_VOID_PTR], var_arg=True)

@@ -46,3 +46,12 @@ nil ;; is a value as well
   (let ((x 43))
     (c/printf "A shadowing binding: %d\n" x)
     (c/printf "This is from a wrapping scope: %d\n" y)))
+
+;; Function definitions
+;; Function arguments are typed explicitly.
+(defn (int double) ((int x))
+  (c/printf "Doubling %d\n" x)
+  (* x 2))
+
+(let ((result (double 7)))
+  (c/printf "Double result is: %d\n" result))
