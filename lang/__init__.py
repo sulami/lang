@@ -96,7 +96,7 @@ class Environment:
         self.blocks = {
             fq_block_name(self.builder.function, block): block,
         }
-        self.scopes = []
+        self.scopes = [dict()]
 
     def add_fn(self, name, ret_type, arg_types):
         f_type = ir.FunctionType(ret_type, arg_types)
@@ -276,7 +276,17 @@ def compile_defn(env, expression, depth=0):
     env.builder.position_at_end(env.blocks[previous_block])
     return fn
 
+def compile_def(env, expression, depth=0):
+    assert 3 == len(expression), 'def takes exactly two arguments'
+    _, name, val = expression
+    evaled_value = compile_expression(env, val, depth=depth+1)
+    env.scopes[-1][name] = evaled_value
+    return evaled_value
+
 def compile_function_call(env, expression, depth=0):
+    if 'def' == expression[0]:
+        return compile_def(env, expression, depth=depth+1)
+
     if 'defn' == expression[0]:
         return compile_defn(env, expression, depth=depth+1)
 

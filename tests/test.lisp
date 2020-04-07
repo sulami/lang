@@ -1,14 +1,9 @@
 ;; This is a comment
 
 ;; C functions are in the c pseudo-namespace.
-(c/printf "Hello from Lisp!\n")
-
 (c/printf "Printing some unicode: %s\n" "今日は")
-
 (c/printf "An integer is: %d\n" 42)
-
 (c/printf "A float is: %f\n" 3.14159)
-
 (c/printf "A boolean is: %d or %d\n" true false)
 
 (if (c/random_bool)
@@ -71,3 +66,14 @@ nil ;; is a value as well
   (c/printf "Double result is: %d\n" result))
 
 (c/printf (c/read_file "README.rst" "r"))
+
+;; `def' is local to the current scope
+(def foo 1)
+(c/printf "global foo is %d\n" foo)
+
+(let ((foo 2))
+  (c/printf "local foo is %d\n" foo)
+  (def foo 3)
+  (c/printf "local def'd foo is %d\n" foo))
+
+(c/printf "global foo is still %d\n" foo)
