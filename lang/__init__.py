@@ -18,13 +18,25 @@ T_BOOL = ir.IntType(1)
 T_F32 = ir.FloatType()
 T_F64 = ir.DoubleType()
 
-# Type mapping
+T_VALUE_STRUCT = ir.LiteralStructType([T_I32, T_VOID_PTR])
+T_VALUE_STRUCT_PTR = T_VALUE_STRUCT.as_pointer()
+
+# Type mapping (from AST)
 TYPES = {
     'void': T_VOID_PTR,
     'int': T_I32,
     'float': T_F64,
     'bool': T_BOOL,
     'string': T_VOID_PTR,
+}
+
+# Type mapping (for runtime values)
+RUNTIME_TYPES = {
+    'void': 0,
+    'bool': 1,
+    'int': 2,
+    'float': 3,
+    # T_STRING: 100,
 }
 
 # Values
@@ -99,7 +111,7 @@ class Environment:
         self.scopes = [dict()]
 
     def add_fn(self, name, ret_type, arg_types):
-        f_type = ir.FunctionType(ret_type, arg_types)
+        f_type = ir.FunctionType(T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR for _ in arg_types])
         func = ir.Function(self.builder.module, f_type, name=name)
         self.lib[name] = func
         entry = self.add_block('entry', fn=func)
@@ -123,8 +135,34 @@ class Environment:
             name=name
         )
 
+    def unbox_value(self, value, out_type):
+        value = self.builder.call(self.lib['c/unbox_value'], [value])
+        if out_type in [T_BOOL, T_I8, T_I32, T_I64]:
+            value = self.builder.call(self.lib['c/unbox'], [value])
+            value = self.builder.ptrtoint(value, out_type)
+        else:
+            value = self.builder.bitcast(value, T_VOID_PTR)
+        return value
+
     def call(self, name, args):
         fn = self.lib[name]
+        print('fn.name', fn.name)
+        print('ftype', fn.ftype)
+        print('fn.args', [a.type for a in fn.args])
+        print('args', [getattr(a, 'type', 'No type') for a in args])
+
+        unboxed_args = []
+        if name.startswith('c/'):
+            # external call, unbox
+            for i in range(len(args)):
+                arg = args[i]
+                fn_arg = fn.args[i] if i < len(fn.args) else None
+                if T_VALUE_STRUCT_PTR == getattr(arg, 'type', None):
+                    arg = self.unbox_value(arg, getattr(fn_arg, 'type', None))
+                unboxed_args.append(arg)
+            args = unboxed_args
+
+        print('args afterwards', [getattr(a, 'type', 'no type') for a in args])
         fn_retval = self.builder.call(fn, args)
         if T_VOID == fn.ftype.return_type:
             # Can't return void as a value, so coerce to nil. Only
@@ -209,7 +247,7 @@ def compile_native_op(env, expression, depth=0):
     # XXX currently only 2-arity
     assert 3 == len(expression), expression[0] + ' takes exactly 2 arguments'
     a, b, c = expression
-    lhs = compile_expression(env, b, depth=depth+1)
+    lhs = env.unbox_value(compile_expression(env, b, depth=depth+1), )
     rhs = compile_expression(env, c, depth=depth+1)
     if '+' == a:
         return env.builder.add(lhs, rhs)
@@ -321,18 +359,36 @@ def compile_constant_string(env, expression):
     # Convert escape sequences
     # XXX eval is the hacky way of accomplishing this.
     # It's fine because we can trust our input.
-    return store_value(env, make_string(eval(expression)))
+    val = make_string(eval(expression))
+    vptr = store_value(env, val)
+    typ = ir.Constant(T_I32, 100)
+    runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
+    return runtime_value
 
 def compile_constant_int(env, expression):
-    return ir.Constant(T_I32, int(expression))
+    val = ir.Constant(T_I32, int(expression))
+    vptr = store_value(env, val)
+    typ = ir.Constant(T_I32, 2)
+    runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
+    return runtime_value
 
 def compile_constant_float(env, expression):
-    # FIXME smaller floats aren't passed corretly to printf, resulting
-    # in misread values.
-    return ir.Constant(T_F64, float(expression))
+    # XXX Smaller floats aren't passed correctly to printf, resulting
+    # in misread values. This has to do with us not having explicit
+    # type casts, and not knowing what to cast to for variadic
+    # function arguments.
+    val = ir.Constant(T_F64, float(expression))
+    vptr = store_value(env, val)
+    typ = ir.Constant(T_I32, 3)
+    runtime_value = env.call('c/make_value', [typ, vptr])
+    return runtime_value
 
 def compile_constant_bool(env, expression):
-    return ir.Constant(T_BOOL, 'true' == expression)
+    val = ir.Constant(T_BOOL, 'true' == expression)
+    vptr = store_value(env, val)
+    typ = ir.Constant(T_I32, 2)
+    runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
+    return runtime_value
 
 def compile_nil(env, expression):
     return ir.Constant(T_VOID_PTR, NULL_PTR)
@@ -340,7 +396,8 @@ def compile_nil(env, expression):
 def compile_symbol(env, expression):
     for scope in reversed(env.scopes):
         if expression in scope:
-            return scope[expression]
+            this = scope[expression]
+            return this
     raise Exception('Could not find symbol ' + expression + ' in local scope')
 
 def compile_expression(env, expression, depth=0):
@@ -381,8 +438,13 @@ def compile_ast(ast):
 
     # libnebula
     env.declare_fn("init_nebula", T_VOID, [])
+    env.declare_fn('make_value', T_VALUE_STRUCT_PTR, [T_I32, T_VOID_PTR])
+    env.declare_fn('unbox_value', T_VOID_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", ir.PointerType(T_I8), [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn('print_int', T_VOID, [T_I32])
+    env.declare_fn('print_bool', T_VOID, [T_BOOL])
     env.declare_fn("random_bool", T_BOOL, [])
+    env.declare_fn("not", T_BOOL, [T_BOOL])
     env.declare_fn("cons", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
     env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])

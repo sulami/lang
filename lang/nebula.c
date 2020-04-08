@@ -5,7 +5,23 @@
 #include <time.h>
 
 /*
- * Init runtime
+ * Testing
+ */
+
+bool random_bool() {
+  return (rand() % 2);
+}
+
+bool not(bool in) {
+  return (in != 1);
+}
+
+void* unbox(void** ptr) {
+  return *ptr;
+}
+
+/*
+ * Runtime
  */
 
 void init_nebula() {
@@ -14,21 +30,66 @@ void init_nebula() {
 }
 
 /*
- * Testing
+ * Values (the runtime understanding)
  */
 
-bool random_bool() {
-  return (rand() % 2);
+// Primitive values are <100.
+enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, STRING = 100};
+
+struct Value {
+  enum Type type;
+  void* value;
+};
+
+struct Value* make_value(enum Type type, void* value) {
+  // TODO don't double-allocate nil
+  // TODO box all but strings
+  struct Value* retval = malloc(sizeof(struct Value));
+  if (NULL == retval) {
+    exit(ENOMEM);
+  }
+  retval->type = type;
+  retval->value = value;
+  return retval;
 }
 
+enum Type value_type(struct Value* value) {
+  return value->type;
+}
+
+void* unbox_value(struct Value* value) {
+  return value->value;
+}
+
+/*
+ * I/O
+ */
+
 char* read_file(const char* file_name, const char* mode) {
-  // TODO all of this is horrible, fix this up at some point.
-  const int buf_size = 255;
-  char* buf = calloc(buf_size, sizeof(char));
+  char* buffer;
   FILE* fp = fopen(file_name, mode);
-  fgets(buf, buf_size, fp);
+  if (NULL == fp) {
+    exit(ENOMEM);
+  }
+  fseek(fp, 0L, SEEK_END);
+  long s = ftell(fp);
+  rewind(fp);
+  buffer = malloc(s);
+  if (NULL == buffer) {
+    fclose(fp);
+    exit(ENOMEM);
+  }
+  fread(buffer, s, 1, fp);
   fclose(fp);
-  return buf;
+  return buffer;
+}
+
+void print_bool(bool b) {
+  printf("bool is %d\n", b);
+}
+
+void print_int(int b) {
+  printf("int is %d\n", b);
 }
 
 /*
@@ -89,8 +150,4 @@ void* aget(void* key, struct cons_cell* list) {
   }
 
   return NULL;
-}
-
-void* unbox(void** ptr) {
-  return *ptr;
 }
