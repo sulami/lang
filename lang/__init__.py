@@ -142,11 +142,11 @@ class Environment:
 
     def unbox_value(self, val, out_type):
         val = self.builder.call(self.lib['c/unbox_value'], [val])
-        if out_type:
+        if out_type and out_type != T_VOID_PTR:
             val = self.builder.bitcast(val, out_type.as_pointer())
+            val = self.builder.load(val)
         else:
             val = self.builder.bitcast(val, T_VOID_PTR)
-        val = self.builder.load(val)
         return val
 
     def call(self, name, args):
@@ -227,7 +227,8 @@ def compile_if(env, expression, depth=0):
     assert 4 == len(expression), 'if takes exactly 3 arguments'
     _, a, b, c = expression
     condition = compile_expression(env, a, depth=depth+1)
-    condition = env.unbox_value(condition, T_BOOL)
+    if T_VALUE_STRUCT_PTR == condition.type:
+        condition = env.unbox_value(condition, T_BOOL)
 
     previous_block = env.builder.block
     endif_block = env.add_block('endif')
