@@ -20,6 +20,11 @@ T_F64 = ir.DoubleType()
 
 T_VALUE_STRUCT = ir.LiteralStructType([T_I32, T_VOID_PTR])
 T_VALUE_STRUCT_PTR = T_VALUE_STRUCT.as_pointer()
+# This is a union in C, but LLVM does not do unions, so it's a struct
+# with a field the size of the largest union member, which we cast to
+# the type we want.
+T_PRIMITIVE = ir.LiteralStructType([T_I64])
+T_PRIMITIVE_PTR = T_PRIMITIVE.as_pointer()
 
 # Type mapping (from AST)
 TYPES = {
@@ -135,14 +140,14 @@ class Environment:
             name=name
         )
 
-    def unbox_value(self, value, out_type):
-        value = self.builder.call(self.lib['c/unbox_value'], [value])
-        if out_type in [T_BOOL, T_I8, T_I32, T_I64]:
-            value = self.builder.call(self.lib['c/unbox'], [value])
-            value = self.builder.ptrtoint(value, out_type)
+    def unbox_value(self, val, out_type):
+        val = self.builder.call(self.lib['c/unbox_value'], [val])
+        if out_type:
+            val = self.builder.bitcast(val, out_type.as_pointer())
         else:
-            value = self.builder.bitcast(value, T_VOID_PTR)
-        return value
+            val = self.builder.bitcast(val, T_VOID_PTR)
+        val = self.builder.load(val)
+        return val
 
     def call(self, name, args):
         fn = self.lib[name]
@@ -222,6 +227,7 @@ def compile_if(env, expression, depth=0):
     assert 4 == len(expression), 'if takes exactly 3 arguments'
     _, a, b, c = expression
     condition = compile_expression(env, a, depth=depth+1)
+    condition = env.unbox_value(condition, T_BOOL)
 
     previous_block = env.builder.block
     endif_block = env.add_block('endif')
@@ -241,25 +247,30 @@ def compile_if(env, expression, depth=0):
     phi = env.builder.phi(T_VOID_PTR)
     phi.add_incoming(then_result, then_block)
     phi.add_incoming(else_result, else_block)
-    return phi
+    # XXX we don't actually know the type
+    retval = env.call('c/make_value', [T_I32(3), store_value(env, phi)])
+    return retval
 
 def compile_native_op(env, expression, depth=0):
-    # XXX currently only 2-arity
+    # XXX currently only 2-arity, use macros to reduce
     assert 3 == len(expression), expression[0] + ' takes exactly 2 arguments'
     a, b, c = expression
-    lhs = env.unbox_value(compile_expression(env, b, depth=depth+1), )
+    lhs = compile_expression(env, b, depth=depth+1)
+    lhs = env.unbox_value(lhs, T_I32)
     rhs = compile_expression(env, c, depth=depth+1)
+    rhs = env.unbox_value(rhs, T_I32)
+    result = None
     if '+' == a:
-        return env.builder.add(lhs, rhs)
+        result = env.builder.add(lhs, rhs)
     if '-' == a:
-        return env.builder.sub(lhs, rhs)
+        result = env.builder.sub(lhs, rhs)
     if '*' == a:
-        return env.builder.mul(lhs, rhs)
+        result = env.builder.mul(lhs, rhs)
     if '/' == a:
-        return env.builder.sdiv(lhs, rhs)
+        result = env.builder.sdiv(lhs, rhs)
     if a in ['<', '<=', '==', '!=', '>=', '>']:
-        return env.builder.icmp_signed(a, lhs, rhs)
-    raise Exception('Unhandled native op')
+        result = env.builder.icmp_signed(a, lhs, rhs)
+    return env.call('c/make_value', [T_I32(3), store_value(env, result)])
 
 def compile_box(env, expression, depth=0):
     assert 2 == len(expression), 'box takes exactly 1 argument'
@@ -439,8 +450,8 @@ def compile_ast(ast):
     # libnebula
     env.declare_fn("init_nebula", T_VOID, [])
     env.declare_fn('make_value', T_VALUE_STRUCT_PTR, [T_I32, T_VOID_PTR])
-    env.declare_fn('unbox_value', T_VOID_PTR, [T_VALUE_STRUCT_PTR])
-    env.declare_fn("read_file", ir.PointerType(T_I8), [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
+    env.declare_fn("read_file", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn('print_int', T_VOID, [T_I32])
     env.declare_fn('print_bool', T_VOID, [T_BOOL])
     env.declare_fn("random_bool", T_BOOL, [])

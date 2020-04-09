@@ -35,13 +35,20 @@ void init_nebula() {
 
 // Primitive values are <100.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, STRING = 100};
+union Primitive {
+  void* nil;
+  bool b;
+  int i;
+  float f;
+  char* string;
+};
 
 struct Value {
   enum Type type;
-  void* value;
+  union Primitive* value;
 };
 
-struct Value* make_value(enum Type type, void* value) {
+struct Value* make_value(enum Type type, union Primitive* value) {
   // TODO don't double-allocate nil
   // TODO box all but strings
   struct Value* retval = malloc(sizeof(struct Value));
@@ -57,7 +64,7 @@ enum Type value_type(struct Value* value) {
   return value->type;
 }
 
-void* unbox_value(struct Value* value) {
+union Primitive* unbox_value(struct Value* value) {
   return value->value;
 }
 
