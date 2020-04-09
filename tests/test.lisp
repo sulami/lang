@@ -1,3 +1,7 @@
+;; This is the full feature test. It's a bit messy, and the smaller
+;; tests are more useful to assert functionality, but it's a good
+;; smoke check and feature showcase.
+
 ;; This is a comment
 
 ;; C functions are in the c pseudo-namespace.
@@ -20,9 +24,9 @@
 
 ;; If for non-string types requires boxing
 (c/printf "Boxed if: %d\n"
-          (c/unbox (if (c/random_bool)
-                       (box 3)
-                       (box 4))))
+          (if (c/random_bool)
+              3
+              4))
 
 nil ;; is a value as well
 
@@ -34,8 +38,8 @@ nil ;; is a value as well
           (/ 10 3)) ;; Integer division
 
 ;; Cons lists currently require explicit boxing & unboxing :/
-(c/printf "A list: %d\n"
-          (c/unbox (c/car (c/cons (box 3) nil))))
+;; (c/printf "A list: %d\n"
+;;           (c/unbox (c/car (c/cons (box 3) nil))))
 
 ;; But not for strings, because strings are boxed implicitly.
 ;; Yay for leaky abstractions.
