@@ -169,25 +169,21 @@ class Environment:
 
         print('args afterwards', [getattr(a, 'type', 'no type') for a in args])
         fn_retval = self.builder.call(fn, args)
-        if T_VOID == fn.ftype.return_type:
-            # Can't return void as a value, so coerce to nil. Only
-            # applicable to C FFI.
-            return ir.Constant(T_VOID_PTR, NULL_PTR)
+        if T_VALUE_STRUCT_PTR != fn.ftype.return_type:
+            # C FFI, we're not returning a boxed value, so box it.
+            # TODO use the correct type annotation
+            if T_VOID == fn.ftype.return_type:
+                # Synthesise a nil value for void functions.
+                fn_retval = self.builder.call(
+                    self.lib['c/make_value'],
+                    [T_I32(0), compile_nil(self, None)]
+                )
+            else:
+                fn_retval = self.builder.call(
+                    self.lib['c/make_value'],
+                    [T_I32(3), store_value(self, fn_retval)]
+                )
         return fn_retval
-
-# def compile_loop(env):
-#     loop_block = env.add_block('loop')
-#     exit_block = env.add_block('exit')
-
-#     env.builder.branch(loop_block)
-
-#     env.switch_block('loop')
-#     call_print_str(env, 'looping...\n')
-#     condition = env.call("random_bool", [])
-#     env.builder.cbranch(condition, loop_block, exit_block)
-
-#     env.switch_block('exit')
-#     call_print_str(env, 'done looping\n')
 
 def compile_nebula():
     print("Compiling nebula...")
@@ -222,8 +218,6 @@ def compile_binary(module):
                            check=True)
 
 def compile_if(env, expression, depth=0):
-    # XXX if needs to box/unbox its values because the return type
-    # can be varying.
     assert 4 == len(expression), 'if takes exactly 3 arguments'
     _, a, b, c = expression
     condition = compile_expression(env, a, depth=depth+1)
@@ -245,12 +239,10 @@ def compile_if(env, expression, depth=0):
         env.builder.cbranch(condition, then_block, else_block)
 
     env.builder.position_at_end(endif_block)
-    phi = env.builder.phi(T_VOID_PTR)
+    phi = env.builder.phi(T_VALUE_STRUCT_PTR)
     phi.add_incoming(then_result, then_block)
     phi.add_incoming(else_result, else_block)
-    # XXX we don't actually know the type
-    retval = env.call('c/make_value', [T_I32(3), store_value(env, phi)])
-    return retval
+    return phi
 
 def compile_native_op(env, expression, depth=0):
     # XXX currently only 2-arity, use macros to reduce

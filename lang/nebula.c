@@ -50,7 +50,6 @@ struct Value {
 
 struct Value* make_value(enum Type type, union Primitive* value) {
   // TODO don't double-allocate nil
-  // TODO box all but strings
   struct Value* retval = malloc(sizeof(struct Value));
   if (NULL == retval) {
     exit(ENOMEM);
