@@ -12,3 +12,9 @@
 (if (c/random_bool)
     42
     46)
+
+;; In this case we use the return value for FFI.
+
+(c/print_int (if (c/random_bool)
+                 42
+                 46))
