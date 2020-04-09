@@ -1,3 +1,5 @@
 ;; This tests that def bindings are working.
 
-;; TODO write this.
+(def x 42)
+
+(c/print_int x)
