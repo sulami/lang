@@ -9,28 +9,28 @@ struct Value* cdr(struct Value*);
 struct Value* car(struct Value*);
 
 /*
- * Testing
- */
-
-bool random_bool() {
-  return (rand() % 2);
-}
-
-bool not(bool in) {
-  return (in != 1);
-}
-
-void* unbox(void** ptr) {
-  return *ptr;
-}
-
-/*
  * Runtime
  */
+
+/* void repl() { */
+/*   char* prompt = "> "; */
+/*   char* input = NULL; */
+/*   size_t len; */
+/*   while (true) { */
+/*     getline(&input, &len, stdin); */
+/*     puts(input); */
+/*     free(input); */
+/*   } */
+/* } */
 
 void init_nebula() {
   puts("Nebula initalised.");
   srand(time(NULL));
+}
+
+int nebula_main(int argc, char* argv) {
+  init_nebula();
+  return 0;
 }
 
 /*
@@ -228,4 +228,22 @@ struct Value* aget(struct Value* key, struct Value* list) {
   }
 
   return make_value(NIL, NULL);
+}
+
+/*
+ * Testing
+ */
+
+struct Value* random_bool() {
+  union Primitive* u = calloc(1, sizeof(union Primitive));
+  u->b = rand() % 2;
+  return make_value(BOOL, u);
+}
+
+bool not(bool in) {
+  return (in != 1);
+}
+
+void* unbox(void** ptr) {
+  return *ptr;
 }

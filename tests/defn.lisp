@@ -8,3 +8,4 @@
     result))
 
 (c/print_value (double 21))
+(c/print_value "\n")

@@ -4,8 +4,8 @@
 ;; In this case we use C types in all positions.
 
 (if (c/random_bool)
-    (c/printf "Random was true\n")
-    (c/printf "Random was false\n"))
+    (c/print_value "Random was true\n")
+    (c/print_value "Random was false\n"))
 
 ;; In this case we use boxed values as return types.
 
@@ -15,6 +15,7 @@
 
 ;; In this case we use the return value for FFI.
 
-(c/print_int (if (c/random_bool)
-                 42
-                 46))
+(c/print_value (if (c/random_bool)
+                   42
+                   46))
+(c/print_value "\n")

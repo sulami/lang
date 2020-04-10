@@ -9,7 +9,7 @@ from llvmlite import ir
 import llvmlite.binding as llvm
 
 DEBUG = False
-OPTIMISE = True
+OPTIMISE = False
 
 # Types
 T_VOID = ir.VoidType()
@@ -154,7 +154,8 @@ class Environment:
         debug('value_type', value_type)
         debug('out_type', out_type)
         if out_type:
-            return self.builder.bitcast(val, T_VOID_PTR)
+            ptr = self.builder.bitcast(val, out_type.as_pointer())
+            return self.builder.load(ptr)
 
         after_block = self.builder.function.append_basic_block('after')
         default_block = self.builder.function.append_basic_block('default')
@@ -282,6 +283,7 @@ def compile_if(env, expression, depth=0):
     return phi
 
 def compile_native_op(env, expression, depth=0):
+    # TODO port this to C and operate on values instead.
     # XXX currently only 2-arity, use macros to reduce
     assert 3 == len(expression), expression[0] + ' takes exactly 2 arguments'
     a, b, c = expression
@@ -300,7 +302,7 @@ def compile_native_op(env, expression, depth=0):
         result = env.builder.sdiv(lhs, rhs)
     if a in ['<', '<=', '==', '!=', '>=', '>']:
         result = env.builder.icmp_signed(a, lhs, rhs)
-    return env.call('c/make_value', [T_I32(3), store_value(env, result)])
+    return env.call('c/make_value', [T_I32(2), store_value(env, result)])
 
 def compile_box(env, expression, depth=0):
     assert 2 == len(expression), 'box takes exactly 1 argument'
@@ -487,9 +489,7 @@ def compile_ast(ast):
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-    env.declare_fn('print_int', T_VOID, [T_I32])
-    env.declare_fn('print_bool', T_VOID, [T_BOOL])
-    env.declare_fn("random_bool", T_BOOL, [])
+    env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
     # env.declare_fn("not", T_BOOL, [T_BOOL])
     env.declare_fn("cons", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("car", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
