@@ -47,6 +47,12 @@ RUNTIME_TYPES = {
 # Values
 NULL_PTR = T_I32(0).inttoptr(T_VOID_PTR)
 
+DEBUG = False
+
+def debug(*args):
+    if DEBUG:
+        print(*args)
+
 def init_llvm():
     """Setup the LLVM core."""
     llvm.initialize()
@@ -181,10 +187,10 @@ class Environment:
 
     def call(self, name, args):
         fn = self.lib[name]
-        print('fn.name', fn.name)
-        print('ftype', fn.ftype)
-        print('fn.args', [a.type for a in fn.args])
-        print('args', [getattr(a, 'type', 'No type') for a in args])
+        debug('fn.name', fn.name)
+        debug('ftype', fn.ftype)
+        debug('fn.args', [a.type for a in fn.args])
+        debug('args', [getattr(a, 'type', 'No type') for a in args])
 
         unboxed_args = []
         if name.startswith('c/'):
@@ -198,7 +204,7 @@ class Environment:
                 unboxed_args.append(arg)
             args = unboxed_args
 
-        print('args afterwards', [getattr(a, 'type', 'no type') for a in args])
+        debug('args afterwards', [getattr(a, 'type', 'no type') for a in args])
         fn_retval = self.builder.call(fn, args)
         if T_VALUE_STRUCT_PTR != fn.ftype.return_type:
             # C FFI, we're not returning a boxed value, so box it.
@@ -553,7 +559,7 @@ def main():
         _, ast = parse(fp.read())
     # print(ast)
     main_mod = compile_ast(ast)
-    # print(main_mod)
+    debug(main_mod)
     main_mod = compile_ir(engine, str(main_mod))
     # print(main_mod)
     compile_binary(main_mod)
