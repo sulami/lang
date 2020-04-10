@@ -141,13 +141,43 @@ class Environment:
         )
 
     def unbox_value(self, val, out_type):
+        value_type = self.builder.call(self.lib['c/value_type'], [val])
         val = self.builder.call(self.lib['c/unbox_value'], [val])
-        if out_type and out_type != T_VOID_PTR:
-            val = self.builder.bitcast(val, out_type.as_pointer())
-            val = self.builder.load(val)
-        else:
-            val = self.builder.bitcast(val, T_VOID_PTR)
-        return val
+
+        if out_type:
+            return self.builder.bitcast(val, T_VOID_PTR)
+
+        after_block = self.builder.function.append_basic_block('after')
+        default_block = self.builder.function.append_basic_block('default')
+        with self.builder.goto_block(default_block):
+            # val_void_ptr = self.builder.bitcast(val, T_VOID_PTR)
+            val_int = self.builder.bitcast(val, T_I32.as_pointer())
+            self.builder.branch(after_block)
+
+        switch = self.builder.switch(value_type, default_block)
+
+        # int_block = self.builder.function.append_basic_block('int')
+        # XXX These correspond to an enum in a very lose manner.
+        # switch.add_case(T_I32(3), int_block)
+        # with self.builder.goto_block(int_block):
+        #     val_int = self.builder.bitcast(val, T_I32.as_pointer())
+        #     self.builder.branch(after_block)
+
+        # XXX This doesn't compile, because the PHI node is statically
+        # typed. I haven't found a way yet to get around this, and
+        # collect.
+        self.builder.position_at_end(after_block)
+        phi = self.builder.phi(T_I32.as_pointer())
+        # phi.add_incoming(val_int, int_block)
+        phi.add_incoming(val_int, default_block)
+
+        # if out_type and out_type != T_VOID_PTR:
+        #     val = self.builder.bitcast(val, out_type.as_pointer())
+        #     val = self.builder.load(val)
+        # else:
+        #     val = self.builder.bitcast(val, T_VOID_PTR)
+
+        return self.builder.load(phi)
 
     def call(self, name, args):
         fn = self.lib[name]
@@ -444,18 +474,20 @@ def compile_ast(ast):
     # libnebula
     env.declare_fn("init_nebula", T_VOID, [])
     env.declare_fn('make_value', T_VALUE_STRUCT_PTR, [T_I32, T_VOID_PTR])
+    env.declare_fn('value_type', T_I32, [T_VALUE_STRUCT_PTR])
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
+    env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn('print_int', T_VOID, [T_I32])
     env.declare_fn('print_bool', T_VOID, [T_BOOL])
     env.declare_fn("random_bool", T_BOOL, [])
-    env.declare_fn("not", T_BOOL, [T_BOOL])
-    env.declare_fn("cons", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
-    env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
-    env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])
-    env.declare_fn("alist", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR, T_VOID_PTR])
-    env.declare_fn("aget", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
-    env.declare_fn("unbox", T_VOID_PTR, [T_VOID_PTR])
+    # env.declare_fn("not", T_BOOL, [T_BOOL])
+    # env.declare_fn("cons", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
+    # env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
+    # env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])
+    # env.declare_fn("alist", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR, T_VOID_PTR])
+    # env.declare_fn("aget", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
+    # env.declare_fn("unbox", T_VOID_PTR, [T_VOID_PTR])
 
     env.call("c/init_nebula", [])
 

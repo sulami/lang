@@ -36,10 +36,9 @@ void init_nebula() {
 // Primitive values are <100.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, STRING = 100};
 union Primitive {
-  void* nil;
   bool b;
   int i;
-  float f;
+  double f;
   char* string;
 };
 
@@ -65,6 +64,26 @@ enum Type value_type(struct Value* value) {
 
 union Primitive* unbox_value(struct Value* value) {
   return value->value;
+}
+
+void print_value(struct Value* value) {
+  switch (value->type) {
+  case NIL:
+    printf("nil");
+    break;
+  case BOOL:
+    printf("%s", (1 == value->value->b) ? "true" : "false");
+    break;
+  case INT:
+    printf("%d", value->value->i);
+    break;
+  case FLOAT:
+    printf("%f", value->value->f);
+    break;
+  case STRING:
+    printf("%s", (char *)(value->value));
+    break;
+  }
 }
 
 /*
