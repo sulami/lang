@@ -174,10 +174,7 @@ class Environment:
             # TODO use the correct type annotation
             if T_VOID == fn.ftype.return_type:
                 # Synthesise a nil value for void functions.
-                fn_retval = self.builder.call(
-                    self.lib['c/make_value'],
-                    [T_I32(0), compile_nil(self, None)]
-                )
+                fn_retval = compile_nil(self, None)
             else:
                 fn_retval = self.builder.call(
                     self.lib['c/make_value'],
@@ -395,7 +392,10 @@ def compile_constant_bool(env, expression):
     return runtime_value
 
 def compile_nil(env, expression):
-    return ir.Constant(T_VOID_PTR, NULL_PTR)
+    vptr = NULL_PTR
+    typ = ir.Constant(T_I32, 0)
+    runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
+    return runtime_value
 
 def compile_symbol(env, expression):
     for scope in reversed(env.scopes):
