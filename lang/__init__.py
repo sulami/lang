@@ -162,8 +162,9 @@ class Environment:
             for i in range(len(args)):
                 arg = args[i]
                 fn_arg = fn.args[i] if i < len(fn.args) else None
-                if T_VALUE_STRUCT_PTR == getattr(arg, 'type', None):
-                    arg = self.unbox_value(arg, getattr(fn_arg, 'type', None))
+                fn_arg_type = getattr(arg, 'type', None)
+                if T_VALUE_STRUCT_PTR == fn_arg_type and arg.type != fn_arg_type:
+                    arg = self.unbox_value(arg, fn_arg_type)
                 unboxed_args.append(arg)
             args = unboxed_args
 
