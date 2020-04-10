@@ -486,7 +486,7 @@ def compile_ast(ast):
     env.declare_fn('value_type', T_I32, [T_VALUE_STRUCT_PTR])
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
-    env.declare_fn("read_file", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn('print_int', T_VOID, [T_I32])
     env.declare_fn('print_bool', T_VOID, [T_BOOL])
     env.declare_fn("random_bool", T_BOOL, [])

@@ -82,7 +82,7 @@ bool value_equal(struct Value* a, struct Value* b) {
   case FLOAT:
     return (a->value->f == b->value->f);
   case STRING:
-    return (0 == strcmp(a->value, b->value));
+    return (0 == strcmp((char*)a->value, (char*)b->value));
   case CONS:
     return (value_equal(car(a), car(b)) && value_equal(cdr(a), cdr(b)));
   }
@@ -124,7 +124,9 @@ void print_value(struct Value* value) {
  * I/O
  */
 
-struct Value* read_file(const char* file_name, const char* mode) {
+struct Value* read_file(const struct Value* name, const struct Value* m) {
+  const char* file_name = (char*)name->value;
+  const char* mode = (char*)m->value;
   char* buffer;
   FILE* fp = fopen(file_name, mode);
   if (NULL == fp) {
