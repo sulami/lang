@@ -8,6 +8,9 @@ import tempfile
 from llvmlite import ir
 import llvmlite.binding as llvm
 
+DEBUG = False
+OPTIMISE = True
+
 # Types
 T_VOID = ir.VoidType()
 T_VOID_PTR = ir.IntType(8).as_pointer()
@@ -46,8 +49,6 @@ RUNTIME_TYPES = {
 
 # Values
 NULL_PTR = T_I32(0).inttoptr(T_VOID_PTR)
-
-DEBUG = False
 
 def debug(*args):
     if DEBUG:
@@ -150,6 +151,8 @@ class Environment:
         value_type = self.builder.call(self.lib['c/value_type'], [val])
         val = self.builder.call(self.lib['c/unbox_value'], [val])
 
+        debug('value_type', value_type)
+        debug('out_type', out_type)
         if out_type:
             return self.builder.bitcast(val, T_VOID_PTR)
 
@@ -208,11 +211,11 @@ class Environment:
         fn_retval = self.builder.call(fn, args)
         if T_VALUE_STRUCT_PTR != fn.ftype.return_type:
             # C FFI, we're not returning a boxed value, so box it.
-            # TODO use the correct type annotation
             if T_VOID == fn.ftype.return_type:
                 # Synthesise a nil value for void functions.
                 fn_retval = compile_nil(self, None)
             else:
+                # TODO use the correct type annotation
                 fn_retval = self.builder.call(
                     self.lib['c/make_value'],
                     [T_I32(3), store_value(self, fn_retval)]
@@ -246,7 +249,7 @@ def compile_binary(module):
             subprocess.run(["cc",
                             "-Wall",
                             "-o", "out",
-                            # "-O3",
+                            "-O3" if OPTIMISE else "-O0",
                             tmp_obj.name,
                             "nebula.o",],
                            check=True)
@@ -488,11 +491,11 @@ def compile_ast(ast):
     env.declare_fn('print_bool', T_VOID, [T_BOOL])
     env.declare_fn("random_bool", T_BOOL, [])
     # env.declare_fn("not", T_BOOL, [T_BOOL])
-    # env.declare_fn("cons", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
-    # env.declare_fn("car", T_VOID_PTR, [T_VOID_PTR])
-    # env.declare_fn("cdr", T_VOID_PTR, [T_VOID_PTR])
-    # env.declare_fn("alist", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR, T_VOID_PTR])
-    # env.declare_fn("aget", T_VOID_PTR, [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn("cons", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
+    env.declare_fn("car", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
+    env.declare_fn("cdr", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
+    env.declare_fn("alist", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
+    env.declare_fn("aget", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     # env.declare_fn("unbox", T_VOID_PTR, [T_VOID_PTR])
 
     env.call("c/init_nebula", [])

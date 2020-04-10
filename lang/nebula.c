@@ -2,7 +2,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 #include <time.h>
+
+struct Value* cdr(struct Value*);
+struct Value* car(struct Value*);
 
 /*
  * Testing
@@ -34,12 +38,14 @@ void init_nebula() {
  */
 
 // Primitive values are <100.
-enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, STRING = 100};
+enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3,
+           STRING = 100, CONS = 101};
 union Primitive {
   bool b;
   int i;
   double f;
   char* string;
+  struct cons_cell* cons;
 };
 
 struct Value {
@@ -60,6 +66,27 @@ struct Value* make_value(enum Type type, union Primitive* value) {
 
 enum Type value_type(struct Value* value) {
   return value->type;
+}
+
+bool value_equal(struct Value* a, struct Value* b) {
+  if (a->type != b->type) {
+    return false;
+  }
+  switch (a->type) {
+  case NIL:
+    return true;
+  case BOOL:
+    return (a->value->b == b->value->b);
+  case INT:
+    return (a->value->i == b->value->i);
+  case FLOAT:
+    return (a->value->f == b->value->f);
+  case STRING:
+    return (0 == strcmp(a->value, b->value));
+  case CONS:
+    return (value_equal(car(a), car(b)) && value_equal(cdr(a), cdr(b)));
+  }
+  return false;
 }
 
 union Primitive* unbox_value(struct Value* value) {
@@ -83,6 +110,13 @@ void print_value(struct Value* value) {
   case STRING:
     printf("%s", (char *)(value->value));
     break;
+  case CONS:
+    printf("(");
+    print_value(car(value));
+    printf(" ");
+    print_value(cdr(value));
+    printf(")");
+    break;
   }
 }
 
@@ -90,7 +124,7 @@ void print_value(struct Value* value) {
  * I/O
  */
 
-char* read_file(const char* file_name, const char* mode) {
+struct Value* read_file(const char* file_name, const char* mode) {
   char* buffer;
   FILE* fp = fopen(file_name, mode);
   if (NULL == fp) {
@@ -106,7 +140,7 @@ char* read_file(const char* file_name, const char* mode) {
   }
   fread(buffer, s, 1, fp);
   fclose(fp);
-  return buffer;
+  return make_value(STRING, (union Primitive*)buffer);
 }
 
 void print_bool(bool b) {
@@ -122,13 +156,13 @@ void print_int(int b) {
  */
 
 struct cons_cell {
-  void* car;
-  struct cons_cell* cdr;
+  struct Value* car;
+  struct Value* cdr;
 };
 
-struct cons_cell* cons(void* head, struct cons_cell* tail) {
+struct Value* cons(struct Value* head, struct Value* tail) {
   if (NULL == head) {
-    return NULL;
+    return make_value(NIL, NULL);
   }
 
   struct cons_cell* new_cons = malloc(sizeof(struct cons_cell));
@@ -139,40 +173,57 @@ struct cons_cell* cons(void* head, struct cons_cell* tail) {
   new_cons->car = head;
   new_cons->cdr = tail;
 
-  return new_cons;
+  union Primitive* u = calloc(1, sizeof(union Primitive));
+  u->cons = new_cons;
+  return make_value(CONS, u);
 }
 
-void* car(struct cons_cell* c) {
-  return c->car;
+struct Value* car(struct Value* c) {
+  union Primitive* value = c->value;
+  if (NULL == value) {
+    return make_value(NIL, NULL);
+  }
+  struct cons_cell* co = value->cons;
+  if (NULL == co) {
+    return make_value(NIL, NULL);
+  }
+  return co->car;
 }
 
-struct cons_cell* cdr(struct cons_cell* c) {
-  return c->cdr;
+struct Value* cdr(struct Value* c) {
+  union Primitive* value = c->value;
+  if (NULL == value) {
+    return make_value(NIL, NULL);
+  }
+  struct cons_cell* co = value->cons;
+  if (NULL == co) {
+    return make_value(NIL, NULL);
+  }
+  return co->cdr;
 }
 
 /*
  * Association lists
  */
 
-struct cons_cell* alist(void* key, void* value, struct cons_cell* tail) {
+struct Value* alist(struct Value* key, struct Value* value, struct Value* tail) {
   if ((NULL == key) || (NULL == value)) {
-    return NULL;
+    return make_value(NIL, NULL);
   }
 
-  struct cons_cell* new_value = cons(value, NULL);
-  struct cons_cell* new_key = cons(key, new_value);
-  return cons(new_key, tail);
+  struct Value* new_key_value_pair = cons(key, value);
+  return cons(new_key_value_pair, tail);
 }
 
-void* aget(void* key, struct cons_cell* list) {
-  struct cons_cell* head = list;
+struct Value* aget(struct Value* key, struct Value* list) {
+  struct Value* head = list;
 
-  while (NULL != head) {
-    if (key == car(car(list))) {
-      return cdr(car(list));
+  while (NIL != head->type) {
+    if (value_equal(key, car(car(head)))) {
+      return cdr(car(head));
     }
-    head = cdr(list);
+    head = cdr(head);
   }
 
-  return NULL;
+  return make_value(NIL, NULL);
 }

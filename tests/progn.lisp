@@ -2,5 +2,6 @@
 
 ;; It returns the values of its last expression.
 
-(c/print_int (progn 46
-                    42))
+(c/print_value (progn
+                 46
+                 42))
