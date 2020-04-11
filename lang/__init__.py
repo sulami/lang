@@ -556,15 +556,6 @@ def compile_ast(ast):
     # ])
     env.scopes[0]['argv'] = env.builder.load(cons_ptr)
 
-    # TODO setup a dynamic namespace in C
-    # TODO get argv into a cons list in that namespace
-    # TODO do dynamic lookups
-    # env.call('c/print_value', [
-    #     env.call(
-    #         'c/make_value',
-    #         [T_I32(RUNTIME_TYPES['int']), store_value(env, argc)]
-    #     )
-    # ])
     for expression in ast:
         compile_expression(env, expression)
     env.builder.ret(T_I32(0))
