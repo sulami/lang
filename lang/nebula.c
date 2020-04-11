@@ -9,9 +9,7 @@ int usercode_main(int, char**);
 struct Value* cdr(struct Value*);
 struct Value* car(struct Value*);
 
-/*
- * Runtime
- */
+/* Runtime */
 
 /* void repl() { */
 /*   char* prompt = "> "; */
@@ -45,9 +43,7 @@ int nebula_main(int argc, char** argv) {
   return usercode_main(argc, argv);
 }
 
-/*
- * Values (the runtime understanding)
- */
+/* Values (the runtime understanding) */
 
 // Primitive values are <100.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3,
@@ -132,9 +128,7 @@ void print_value(struct Value* value) {
   }
 }
 
-/*
- * I/O
- */
+/* I/O */
 
 struct Value* read_file(const struct Value* name, const struct Value* m) {
   const char* file_name = (char*)name->value;
@@ -165,9 +159,7 @@ void print_int(int b) {
   printf("int is %d\n", b);
 }
 
-/*
- * Cons cells
- */
+/* Cons cells */
 
 struct cons_cell {
   struct Value* car;
@@ -216,9 +208,7 @@ struct Value* cdr(struct Value* c) {
   return co->cdr;
 }
 
-/*
- * Association lists
- */
+/* Association lists */
 
 struct Value* alist(struct Value* key, struct Value* value, struct Value* tail) {
   if ((NULL == key) || (NULL == value)) {
@@ -242,9 +232,7 @@ struct Value* aget(struct Value* key, struct Value* list) {
   return make_value(NIL, NULL);
 }
 
-/*
- * Testing
- */
+/* Testing */
 
 struct Value* random_bool() {
   union Primitive* u = calloc(1, sizeof(union Primitive));
