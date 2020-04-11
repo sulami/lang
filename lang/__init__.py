@@ -231,6 +231,7 @@ def compile_nebula():
                     "-Wall",
                     "-fpic",
                     "-c",
+                    "-O3" if OPTIMISE else "-O0",
                     "-o", "nebula.o",
                     "lang/nebula.c"])
 
@@ -244,6 +245,7 @@ def compile_binary(module):
             subprocess.run(["/usr/local/opt/llvm/bin/llc",
                             "--filetype=obj",
                             "-o=" + tmp_obj.name,
+                            "-O3" if OPTIMISE else "-O0",
                             tmp_llvm_ir.name],
                            check=True)
             # Link & compile the binary
@@ -448,7 +450,7 @@ def compile_symbol(env, expression):
     raise Exception('Could not find symbol ' + expression + ' in local scope')
 
 def compile_expression(env, expression, depth=0):
-    print(' ' * (depth + 1) + 'Compiling expression: ' + str(expression))
+    debug(' ' * (depth + 1) + 'Compiling expression: ' + str(expression))
 
     if isinstance(expression, list):
         # function call
@@ -627,7 +629,7 @@ def main():
     main_mod = compile_ast(ast)
     debug(main_mod)
     main_mod = compile_ir(engine, str(main_mod))
-    # print(main_mod)
+    debug(main_mod)
     compile_binary(main_mod)
 
     # this works, but I don't know how to call it then.
