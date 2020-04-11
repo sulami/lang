@@ -151,14 +151,6 @@ struct Value* read_file(const struct Value* name, const struct Value* m) {
   return make_value(STRING, (union Primitive*)buffer);
 }
 
-void print_bool(bool b) {
-  printf("bool is %d\n", b);
-}
-
-void print_int(int b) {
-  printf("int is %d\n", b);
-}
-
 /* Cons cells */
 
 struct cons_cell {
@@ -238,12 +230,4 @@ struct Value* random_bool() {
   union Primitive* u = calloc(1, sizeof(union Primitive));
   u->b = rand() % 2;
   return make_value(BOOL, u);
-}
-
-bool not(bool in) {
-  return (in != 1);
-}
-
-void* unbox(void** ptr) {
-  return *ptr;
 }

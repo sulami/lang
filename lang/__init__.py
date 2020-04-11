@@ -149,46 +149,12 @@ class Environment:
         )
 
     def unbox_value(self, val, out_type):
-        value_type = self.builder.call(self.lib['c/value_type'], [val])
         val = self.builder.call(self.lib['c/unbox_value'], [val])
 
-        debug('value_type', value_type)
         debug('out_type', out_type)
-        if out_type:
-            ptr = self.builder.bitcast(val, out_type.as_pointer())
-            return self.builder.load(ptr)
-
-        after_block = self.builder.function.append_basic_block('after')
-        default_block = self.builder.function.append_basic_block('default')
-        with self.builder.goto_block(default_block):
-            # val_void_ptr = self.builder.bitcast(val, T_VOID_PTR)
-            val_int = self.builder.bitcast(val, T_I32.as_pointer())
-            self.builder.branch(after_block)
-
-        switch = self.builder.switch(value_type, default_block)
-
-        # int_block = self.builder.function.append_basic_block('int')
-        # XXX These correspond to an enum in a very lose manner.
-        # switch.add_case(T_I32(3), int_block)
-        # with self.builder.goto_block(int_block):
-        #     val_int = self.builder.bitcast(val, T_I32.as_pointer())
-        #     self.builder.branch(after_block)
-
-        # XXX This doesn't compile, because the PHI node is statically
-        # typed. I haven't found a way yet to get around this, and
-        # collect.
-        self.builder.position_at_end(after_block)
-        phi = self.builder.phi(T_I32.as_pointer())
-        # phi.add_incoming(val_int, int_block)
-        phi.add_incoming(val_int, default_block)
-
-        # if out_type and out_type != T_VOID_PTR:
-        #     val = self.builder.bitcast(val, out_type.as_pointer())
-        #     val = self.builder.load(val)
-        # else:
-        #     val = self.builder.bitcast(val, T_VOID_PTR)
-
-        return self.builder.load(phi)
+        out_type = out_type or T_I32
+        val_int = self.builder.bitcast(val, T_I32.as_pointer())
+        return self.builder.load(val_int)
 
     def call(self, name, args):
         fn = self.lib[name]
@@ -472,54 +438,46 @@ def compile_expression(env, expression, depth=0):
         # symbol
         return compile_symbol(env, expression)
 
-def compile_ast(ast):
+def compile_main(ast):
     print('Compiling application...')
     module = ir.Module(name='main')
     module.triple = llvm.get_default_triple()
 
+    # LLVM main function
     f_type = ir.FunctionType(T_I32, [T_I32, T_VOID_PTR.as_pointer()])
     main_fn = ir.Function(module, f_type, name='main')
     main_entry_block = main_fn.append_basic_block('entry')
     env = Environment(module, main_entry_block)
 
-    # C stdlib
-    env.declare_fn("printf", T_VOID, [T_VOID_PTR], var_arg=True)
-
-    # libnebula
-    env.declare_fn("init_nebula", T_VOID, [])
+    # Declare libnebula
     env.declare_fn("nebula_main", T_I32, [T_I32, T_VOID_PTR.as_pointer()])
     env.declare_fn('make_value', T_VALUE_STRUCT_PTR, [T_I32, T_VOID_PTR])
-    env.declare_fn('value_type', T_I32, [T_VALUE_STRUCT_PTR])
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
-    # env.declare_fn("not", T_BOOL, [T_BOOL])
     env.declare_fn("cons", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("car", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn("cdr", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn("alist", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("aget", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-    # env.declare_fn("unbox", T_VOID_PTR, [T_VOID_PTR])
 
+    # Dispatch to runtime main function
     argc, argv = main_fn.args
-    env.call("c/nebula_main", [argc, argv])
+    env.builder.ret(env.builder.call(env.lib["c/nebula_main"], [argc, argv]))
 
-    env.builder.ret(T_I32(0))
-
-    # usercode implicit main
+    # User code implicit main
     usercode_f_type = ir.FunctionType(T_I32, [T_I32, T_VOID_PTR.as_pointer()])
     usercode_main_fn = ir.Function(env.builder.module, usercode_f_type, name='usercode_main')
     usercode_main_entry_block = usercode_main_fn.append_basic_block('entry')
-
     env.builder.position_at_end(usercode_main_entry_block)
     argc, argv = usercode_main_fn.args
 
-    # setup look blocks
+    # Setup loof blocks
     loop_block = env.add_block('loop')
     exit_block = env.add_block('exit')
 
-    # jump to the loop block
+    # Jump to the loop block
     env.builder.position_at_end(usercode_main_entry_block)
     ctr_ptr = env.builder.alloca(argc.type)
     env.builder.store(argc, ctr_ptr)
@@ -528,7 +486,7 @@ def compile_ast(ast):
     env.builder.store(cons, cons_ptr)
     env.builder.branch(loop_block)
 
-    # in loop: print argc, decrement it, maybe loop around
+    # In loop: add argv to cons, decrement argc
     env.builder.position_at_end(loop_block)
     current_ctr = env.builder.load(ctr_ptr)
     new_ctr = env.builder.sub(current_ctr, T_I32(1))
@@ -545,6 +503,7 @@ def compile_ast(ast):
     condition = env.builder.icmp_signed('<', T_I32(0), new_ctr)
     env.builder.cbranch(condition, loop_block, exit_block)
 
+    # Done looping
     env.builder.position_at_end(exit_block)
     # This prints out the argv cons
     # env.call('c/print_value', [env.builder.load(cons_ptr)])
@@ -556,6 +515,7 @@ def compile_ast(ast):
     # ])
     env.scopes[0]['argv'] = env.builder.load(cons_ptr)
 
+    # Compile user code
     for expression in ast:
         compile_expression(env, expression)
     env.builder.ret(T_I32(0))
@@ -612,21 +572,15 @@ def main():
     init_llvm()
     compile_nebula()
     engine = compile_execution_engine()
-
     ast = None
     with open(sys.argv[1], 'r') as fp:
         _, ast = parse(fp.read())
-    # print(ast)
-    main_mod = compile_ast(ast)
+    debug(ast)
+    main_mod = compile_main(ast)
     debug(main_mod)
     main_mod = compile_ir(engine, str(main_mod))
     debug(main_mod)
     compile_binary(main_mod)
-
-    # this works, but I don't know how to call it then.
-    # str_mod = compile_str_func("say_hello", "hello, world!\n")
-    # str_mod = compile_ir(engine, str(str_mod))
-    # main_mod.link_in(str_mod, preserve=True)
     print('Compiled successfully!')
 
 if __name__ == '__main__':
