@@ -277,7 +277,7 @@ def compile_box(env, expression, depth=0):
     return store_value(env, compile_expression(env, expression[1], depth=depth+1))
 
 def compile_progn(env, expression, depth=0):
-    retval = None  # TODO should probably be nil instead
+    retval = env.call('c/make_value', [T_I32(0), store_value(env, NULL_PTR)])
     for exp in expression:
         retval = compile_expression(env, exp, depth=depth+1)
     return retval
