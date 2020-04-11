@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 
+int usercode_main(int, char**);
 struct Value* cdr(struct Value*);
 struct Value* car(struct Value*);
 
@@ -28,9 +29,20 @@ void init_nebula() {
   srand(time(NULL));
 }
 
-int nebula_main(int argc, char* argv) {
+/* This is the runtime main function. It will init the runtime and
+then pass control to the implicit user code main function.
+
+The call order is like this:
+LLVM main -> nebula_main -> usercode_main
+           ↪ init_nebula
+ */
+int nebula_main(int argc, char** argv) {
   init_nebula();
-  return 0;
+  /* for (int i = 0; i < argc; i++) { */
+  /*   puts(argv[i]); */
+  /* } */
+  // XXX Forward command line arguments to usercode for now.
+  return usercode_main(argc, argv);
 }
 
 /*

@@ -40,11 +40,12 @@ TYPES = {
 
 # Type mapping (for runtime values)
 RUNTIME_TYPES = {
-    'void': 0,
+    'nil': 0,
     'bool': 1,
     'int': 2,
     'float': 3,
-    # T_STRING: 100,
+    'string': 100,
+    'cons': 101,
 }
 
 # Values
@@ -474,7 +475,7 @@ def compile_ast(ast):
     module = ir.Module(name='main')
     module.triple = llvm.get_default_triple()
 
-    f_type = ir.FunctionType(T_I32, [])
+    f_type = ir.FunctionType(T_I32, [T_I32, T_VOID_PTR.as_pointer()])
     main_fn = ir.Function(module, f_type, name='main')
     main_entry_block = main_fn.append_basic_block('entry')
     env = Environment(module, main_entry_block)
@@ -484,6 +485,7 @@ def compile_ast(ast):
 
     # libnebula
     env.declare_fn("init_nebula", T_VOID, [])
+    env.declare_fn("nebula_main", T_I32, [T_I32, T_VOID_PTR.as_pointer()])
     env.declare_fn('make_value', T_VALUE_STRUCT_PTR, [T_I32, T_VOID_PTR])
     env.declare_fn('value_type', T_I32, [T_VALUE_STRUCT_PTR])
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
@@ -498,12 +500,73 @@ def compile_ast(ast):
     env.declare_fn("aget", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     # env.declare_fn("unbox", T_VOID_PTR, [T_VOID_PTR])
 
-    env.call("c/init_nebula", [])
+    argc, argv = main_fn.args
+    env.call("c/nebula_main", [argc, argv])
 
+    env.builder.ret(T_I32(0))
+
+    # usercode implicit main
+    usercode_f_type = ir.FunctionType(T_I32, [T_I32, T_VOID_PTR.as_pointer()])
+    usercode_main_fn = ir.Function(env.builder.module, usercode_f_type, name='usercode_main')
+    usercode_main_entry_block = usercode_main_fn.append_basic_block('entry')
+
+    env.builder.position_at_end(usercode_main_entry_block)
+    argc, argv = usercode_main_fn.args
+
+    # setup look blocks
+    loop_block = env.add_block('loop')
+    exit_block = env.add_block('exit')
+
+    # jump to the loop block
+    env.builder.position_at_end(usercode_main_entry_block)
+    ctr_ptr = env.builder.alloca(argc.type)
+    env.builder.store(argc, ctr_ptr)
+    cons = env.call('c/make_value', [T_I32(RUNTIME_TYPES['nil']), NULL_PTR])
+    cons_ptr = env.builder.alloca(cons.type)
+    env.builder.store(cons, cons_ptr)
+    env.builder.branch(loop_block)
+
+    # in loop: print argc, decrement it, maybe loop around
+    env.builder.position_at_end(loop_block)
+    current_ctr = env.builder.load(ctr_ptr)
+    new_ctr = env.builder.sub(current_ctr, T_I32(1))
+    new_ctr_value = env.call(
+        'c/make_value',
+        [T_I32(RUNTIME_TYPES['int']), store_value(env, new_ctr)]
+    )
+    this_argv = env.builder.gep(argv, [new_ctr])
+    this_argv = env.builder.load(this_argv)
+    this_argv_value = env.call('c/make_value', [T_I32(RUNTIME_TYPES['string']), this_argv])
+    new_cons = env.call('c/cons', [this_argv_value, env.builder.load(cons_ptr)])
+    env.builder.store(new_cons, cons_ptr)
+    env.builder.store(new_ctr, ctr_ptr)
+    condition = env.builder.icmp_signed('<', T_I32(0), new_ctr)
+    env.builder.cbranch(condition, loop_block, exit_block)
+
+    env.builder.position_at_end(exit_block)
+    # This prints out the argv cons
+    # env.call('c/print_value', [env.builder.load(cons_ptr)])
+    # env.call('c/print_value', [
+    #     env.call('c/make_value', [
+    #         T_I32(RUNTIME_TYPES['string']),
+    #         store_value(env, make_string('\n'))
+    #     ])
+    # ])
+    env.scopes[0]['argv'] = env.builder.load(cons_ptr)
+
+    # TODO setup a dynamic namespace in C
+    # TODO get argv into a cons list in that namespace
+    # TODO do dynamic lookups
+    # env.call('c/print_value', [
+    #     env.call(
+    #         'c/make_value',
+    #         [T_I32(RUNTIME_TYPES['int']), store_value(env, argc)]
+    #     )
+    # ])
     for expression in ast:
         compile_expression(env, expression)
+    env.builder.ret(T_I32(0))
 
-    env.builder.ret(ir.Constant(T_I32, 0))
     return module
 
 def parse(unparsed, depth=0):
