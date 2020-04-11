@@ -149,11 +149,10 @@ class Environment:
         )
 
     def unbox_value(self, val, out_type):
-        val = self.builder.call(self.lib['c/unbox_value'], [val])
-
         debug('out_type', out_type)
+        val = self.builder.call(self.lib['c/unbox_value'], [val])
         out_type = out_type or T_I32
-        val_int = self.builder.bitcast(val, T_I32.as_pointer())
+        val_int = self.builder.bitcast(val, out_type.as_pointer())
         return self.builder.load(val_int)
 
     def call(self, name, args):
