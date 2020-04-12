@@ -1,5 +1,4 @@
 ;; This tests that we can do simple recursion.
-;; TODO something is fishy here for targets > 100.
 
 (defn count (i)
   (c/print_value "counting: ")

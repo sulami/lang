@@ -33,7 +33,7 @@ T_PRIMITIVE_PTR = T_PRIMITIVE.as_pointer()
 TYPES = {
     'void': T_VOID_PTR,
     'int': T_I32,
-    'float': T_F64,
+    'float': T_F32,
     'bool': T_BOOL,
     'string': T_VOID_PTR,
 }
@@ -393,7 +393,7 @@ def compile_constant_float(env, expression):
     # in misread values. This has to do with us not having explicit
     # type casts, and not knowing what to cast to for variadic
     # function arguments.
-    val = ir.Constant(T_F64, float(expression))
+    val = ir.Constant(T_F32, float(expression))
     vptr = store_value(env, val)
     typ = ir.Constant(T_I32, 3)
     runtime_value = env.call('c/make_value', [typ, vptr])

@@ -51,7 +51,7 @@ enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3,
 union Primitive {
   bool b;
   int i;
-  double f;
+  float f;
   char* string;
   struct cons_cell* cons;
 };
