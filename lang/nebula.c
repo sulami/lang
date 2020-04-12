@@ -94,25 +94,40 @@ enum Type value_type(struct Value* value) {
   return value->type;
 }
 
-bool value_equal(struct Value* a, struct Value* b) {
+struct Value* value_equal(struct Value* a, struct Value* b) {
+  bool result;
+
   if (a->type != b->type) {
-    return false;
+    result = false;
+  } else {
+    switch (a->type) {
+    case NIL:
+      result = true;
+      break;
+    case BOOL:
+      result = (a->value->b == b->value->b);
+      break;
+    case INT:
+      result = (a->value->i == b->value->i);
+      break;
+    case FLOAT:
+      result = (a->value->f == b->value->f);
+      break;
+    case STRING:
+      result = (0 == strcmp((char*)a->value, (char*)b->value));
+      break;
+    case CONS:
+      result = (value_equal(car(a), car(b)) && value_equal(cdr(a), cdr(b)));
+      break;
+    default:
+      result = false;
+      break;
+    }
   }
-  switch (a->type) {
-  case NIL:
-    return true;
-  case BOOL:
-    return (a->value->b == b->value->b);
-  case INT:
-    return (a->value->i == b->value->i);
-  case FLOAT:
-    return (a->value->f == b->value->f);
-  case STRING:
-    return (0 == strcmp((char*)a->value, (char*)b->value));
-  case CONS:
-    return (value_equal(car(a), car(b)) && value_equal(cdr(a), cdr(b)));
-  }
-  return false;
+
+  union Primitive* u = calloc(1, sizeof(union Primitive));
+  u->b = result;
+  return make_value(BOOL, u);
 }
 
 union Primitive* unbox_value(struct Value* value) {
