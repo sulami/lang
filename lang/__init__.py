@@ -29,15 +29,6 @@ T_VALUE_STRUCT_PTR = T_VALUE_STRUCT.as_pointer()
 T_PRIMITIVE = ir.LiteralStructType([T_I64])
 T_PRIMITIVE_PTR = T_PRIMITIVE.as_pointer()
 
-# Type mapping (from AST)
-TYPES = {
-    'void': T_VOID_PTR,
-    'int': T_I32,
-    'float': T_F32,
-    'bool': T_BOOL,
-    'string': T_VOID_PTR,
-}
-
 # Type mapping (for runtime values)
 RUNTIME_TYPES = {
     'nil': 0,
@@ -183,10 +174,12 @@ class Environment:
                 # Synthesise a nil value for void functions.
                 fn_retval = compile_nil(self, None)
             else:
-                # TODO use the correct type annotation
+                # TODO Use the correct type annotation.
+                # Should probably add that when declaring, if we want
+                # proper arbitrary interop.
                 fn_retval = self.builder.call(
                     self.lib['c/make_value'],
-                    [T_I32(3), store_value(self, fn_retval)]
+                    [T_I32(RUNTIME_TYPES['int']), store_value(self, fn_retval)]
                 )
         return fn_retval
 
@@ -280,7 +273,7 @@ def compile_box(env, expression, depth=0):
 
 def compile_progn(env, expression, depth=0):
     if [] == expression:
-        return env.call('c/make_value', [T_I32(0), store_value(env, NULL_PTR)])
+        return env.call('c/make_value', [T_I32(RUNTIME_TYPES['nil']), NULL_PTR])
     else:
         retval = None
         for exp in expression:
@@ -362,7 +355,6 @@ def compile_function_call(env, expression, depth=0):
 
     # else: function call
     # TODO currently only static function names
-    # TODO we might want to cast argument pointers to the correct
     # types if we know them
     args = []
     for exp in expression[1:]:
@@ -377,14 +369,14 @@ def compile_constant_string(env, expression):
     # It's fine because we can trust our input.
     val = make_string(eval(expression))
     vptr = store_value(env, val)
-    typ = ir.Constant(T_I32, 100)
+    typ = ir.Constant(T_I32, RUNTIME_TYPES['string'])
     runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
     return runtime_value
 
 def compile_constant_int(env, expression):
     val = ir.Constant(T_I32, int(expression))
     vptr = store_value(env, val)
-    typ = ir.Constant(T_I32, 2)
+    typ = ir.Constant(T_I32, RUNTIME_TYPES['int'])
     runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
     return runtime_value
 
@@ -395,20 +387,20 @@ def compile_constant_float(env, expression):
     # function arguments.
     val = ir.Constant(T_F32, float(expression))
     vptr = store_value(env, val)
-    typ = ir.Constant(T_I32, 3)
+    typ = ir.Constant(T_I32, RUNTIME_TYPES['float'])
     runtime_value = env.call('c/make_value', [typ, vptr])
     return runtime_value
 
 def compile_constant_bool(env, expression):
     val = ir.Constant(T_BOOL, 'true' == expression)
     vptr = store_value(env, val)
-    typ = ir.Constant(T_I32, 2)
+    typ = ir.Constant(T_I32, RUNTIME_TYPES['bool'])
     runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
     return runtime_value
 
 def compile_nil(env, expression):
     vptr = NULL_PTR
-    typ = ir.Constant(T_I32, 0)
+    typ = ir.Constant(T_I32, RUNTIME_TYPES['nil'])
     runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
     return runtime_value
 
