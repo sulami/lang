@@ -62,13 +62,31 @@ struct Value {
 };
 
 struct Value* make_value(enum Type type, union Primitive* value) {
-  // TODO don't double-allocate nil
+  // TODO Don't double-allocate nil, just keep a single global nil
+  // value around.
   struct Value* retval = malloc(sizeof(struct Value));
   if (NULL == retval) {
     exit(ENOMEM);
   }
+
+  // We have to allocate the actual value on the heap, as LLVM stores
+  // things on the stack only, so we'd lose our boxed value when
+  // returning from a function. Nil is a special case, as value is
+  // empty, and (usually) a null pointer, so we can skip this step.
+  // Non-primitive values (type >= 100) can also safely be assigned
+  // over, as they're only pointers anyway.
+  if ((NIL != type) && (type < 100)) {
+    union Primitive* val = malloc(sizeof(union Primitive));
+    if (NULL == val) {
+      exit(ENOMEM);
+    }
+    *val = *value;
+    retval->value = val;
+  } else {
+    retval->value = value;
+  }
+
   retval->type = type;
-  retval->value = value;
   return retval;
 }
 
