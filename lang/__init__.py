@@ -296,8 +296,8 @@ def compile_let(env, expression, depth=0):
     env.scopes.pop()
     return retval
 
-def compile_defn(env, expression, depth=0):
-    assert 4 <= len(expression), 'defn takes at least 3 arguments'
+def compile_defun(env, expression, depth=0):
+    assert 4 <= len(expression), 'defun takes at least 3 arguments'
 
     fn_name = expression[1]
     previous_block = env.current_block_name()
@@ -334,8 +334,8 @@ def compile_function_call(env, expression, depth=0):
     if 'def' == expression[0]:
         return compile_def(env, expression, depth=depth+1)
 
-    if 'defn' == expression[0]:
-        return compile_defn(env, expression, depth=depth+1)
+    if 'defun' == expression[0]:
+        return compile_defun(env, expression, depth=depth+1)
 
     if 'progn' == expression[0]:
         return compile_progn(env, expression[1:], depth=depth+1)
@@ -450,6 +450,7 @@ def compile_main(ast):
     env.declare_fn('make_value', T_VALUE_STRUCT_PTR, [T_I32, T_VOID_PTR])
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
+    env.declare_fn("value_equal", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
     env.declare_fn("cons", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])

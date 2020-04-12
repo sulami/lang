@@ -1,6 +1,6 @@
 ;; This tests that we can declare a function and call it.
 
-(defn double (x)
+(defun double (x)
   (c/print_value "2 x ")
   (c/print_value x)
   (c/print_value " = ")
@@ -14,6 +14,6 @@
   (c/print_value result)
   (c/print_value "\n"))
 
-(defn string-function (s)
+(defun string-function (s)
   s)
 (c/print_value (string-function "This is a very long string\n"))

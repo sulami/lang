@@ -1,6 +1,6 @@
 ;; This tests that we can do simple recursion.
 
-(defn count (i)
+(defun count (i)
   (c/print_value "counting: ")
   (c/print_value i)
   (c/print_value "\n")
@@ -13,7 +13,7 @@
 
 ;; This tests that we can recurse without blowing the stack.
 
-(defn countmore (i)
+(defun countmore (i)
   (if (< i 1000000)
       (recur (+ 1 i))
       i))
@@ -23,7 +23,7 @@
 
 ;; A bit more sophistication, and complex arguments.
 
-(defn powers-of-two (acc limit)
+(defun powers-of-two (acc limit)
   (let ((next (* 2 (c/car acc))))
     (if (< next limit)
         (recur (c/cons next acc) limit)
