@@ -155,7 +155,7 @@ class Environment:
         val_int = self.builder.bitcast(val, out_type.as_pointer())
         return self.builder.load(val_int)
 
-    def call(self, name, args):
+    def call(self, name, args, tail=False):
         fn = self.lib[name]
         debug('fn.name', fn.name)
         debug('ftype', fn.ftype)
@@ -175,7 +175,7 @@ class Environment:
             args = unboxed_args
 
         debug('args afterwards', [getattr(a, 'type', 'no type') for a in args])
-        fn_retval = self.builder.call(fn, args)
+        fn_retval = self.builder.call(fn, args, tail=tail)
         if T_VALUE_STRUCT_PTR != fn.ftype.return_type:
             debug('fn return type', fn.ftype.return_type)
             # C FFI, we're not returning a boxed value, so box it.
@@ -329,7 +329,15 @@ def compile_def(env, expression, depth=0):
     env.scopes[-1][name] = evaled_value
     return evaled_value
 
+def compile_recur(env, expression, depth=0):
+    args = [compile_expression(env, arg) for arg in expression[1:]]
+    current_fn_name = env.builder.function.name
+    return env.call(current_fn_name, args, tail=True)
+
 def compile_function_call(env, expression, depth=0):
+    if 'recur' == expression[0]:
+        return compile_recur(env, expression, depth=depth+1)
+
     if 'def' == expression[0]:
         return compile_def(env, expression, depth=depth+1)
 
