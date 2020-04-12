@@ -123,8 +123,8 @@ class Environment:
         }
         self.scopes = [dict()]
 
-    def add_fn(self, name, ret_type, arg_types):
-        f_type = ir.FunctionType(T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR for _ in arg_types])
+    def add_fn(self, name, argc):
+        f_type = ir.FunctionType(T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR for _ in range(argc)])
         func = ir.Function(self.builder.module, f_type, name=name)
         self.lib[name] = func
         entry = self.add_block('entry', fn=func)
@@ -177,6 +177,7 @@ class Environment:
         debug('args afterwards', [getattr(a, 'type', 'no type') for a in args])
         fn_retval = self.builder.call(fn, args)
         if T_VALUE_STRUCT_PTR != fn.ftype.return_type:
+            debug('fn return type', fn.ftype.return_type)
             # C FFI, we're not returning a boxed value, so box it.
             if T_VOID == fn.ftype.return_type:
                 # Synthesise a nil value for void functions.
@@ -266,21 +267,25 @@ def compile_native_op(env, expression, depth=0):
         result = env.builder.sub(lhs, rhs)
     if '*' == a:
         result = env.builder.mul(lhs, rhs)
+        return env.call('c/make_value', [T_I32(RUNTIME_TYPES['int']), store_value(env, result)])
     if '/' == a:
         result = env.builder.sdiv(lhs, rhs)
     if a in ['<', '<=', '==', '!=', '>=', '>']:
         result = env.builder.icmp_signed(a, lhs, rhs)
-    return env.call('c/make_value', [T_I32(2), store_value(env, result)])
+    return env.call('c/make_value', [T_I32(RUNTIME_TYPES['int']), store_value(env, result)])
 
 def compile_box(env, expression, depth=0):
     assert 2 == len(expression), 'box takes exactly 1 argument'
     return store_value(env, compile_expression(env, expression[1], depth=depth+1))
 
 def compile_progn(env, expression, depth=0):
-    retval = env.call('c/make_value', [T_I32(0), store_value(env, NULL_PTR)])
-    for exp in expression:
-        retval = compile_expression(env, exp, depth=depth+1)
-    return retval
+    if [] == expression:
+        return env.call('c/make_value', [T_I32(0), store_value(env, NULL_PTR)])
+    else:
+        retval = None
+        for exp in expression:
+            retval = compile_expression(env, exp, depth=depth+1)
+        return retval
 
 def compile_let(env, expression, depth=0):
     assert 3 <= len(expression), 'let takes at least 2 arguments'
@@ -301,22 +306,14 @@ def compile_let(env, expression, depth=0):
 def compile_defn(env, expression, depth=0):
     assert 4 <= len(expression), 'defn takes at least 3 arguments'
 
-    assert 2 == len(expression[1]), 'defn type/name must be exactly 2 elements'
-    ret_type, fn_name = expression[1]
-    ret_type = TYPES[ret_type]
-
+    fn_name = expression[1]
     previous_block = env.current_block_name()
-
     args = expression[2]
-    arg_types = []
-    for arg in args:
-        assert 2 == len(arg), 'defn arguments must be exactly 2 elements'
-        arg_types.append(TYPES[arg[0]])
-    fn = env.add_fn(fn_name, ret_type, arg_types)
+    fn = env.add_fn(fn_name, len(args))
 
     body = (expression[3:])
     fn_args = fn.args
-    new_scope = dict(zip ([arg[1] for arg in args], fn.args))
+    new_scope = dict(zip ([arg for arg in args], fn.args))
     env.scopes.append(new_scope)
     retval = compile_progn(env, body, depth=depth+1)
     env.builder.ret(retval)
@@ -474,7 +471,7 @@ def compile_main(ast):
 
     # Setup loof blocks
     loop_block = env.add_block('loop')
-    exit_block = env.add_block('exit')
+    exit_block = env.add_block('usercode')
 
     # Jump to the loop block
     env.builder.position_at_end(usercode_main_entry_block)
@@ -578,7 +575,7 @@ def main():
     main_mod = compile_main(ast)
     debug(main_mod)
     main_mod = compile_ir(engine, str(main_mod))
-    debug(main_mod)
+    # debug(main_mod)
     compile_binary(main_mod)
     print('Compiled successfully!')
 
