@@ -192,7 +192,8 @@ def compile_nebula():
                     "-c",
                     "-O3" if OPTIMISE else "-O0",
                     "-o", "nebula.o",
-                    "lang/nebula.c"])
+                    "lang/nebula.c"],
+                   check=True)
 
 def compile_binary(module):
     with tempfile.NamedTemporaryFile(mode='w', suffix=".ll") as tmp_llvm_ir:
