@@ -1,4 +1,4 @@
 ;; This tests that we can receive arguments passed to the binary.
 
-(c/print_value argv)
-(c/print_value "\n")
+(print_value argv)
+(print_value "\n")

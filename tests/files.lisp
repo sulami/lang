@@ -1,3 +1,3 @@
 ;; This tests that we can read a file and print the contents.
 
-(c/print_value (c/read_file "tests/files.lisp" "r"))
+(print_value (read_file "tests/files.lisp" "r"))

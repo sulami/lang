@@ -3,19 +3,19 @@
 
 ;; In this case we use C types in all positions.
 
-(if (c/random_bool)
-    (c/print_value "Random was true\n")
-    (c/print_value "Random was false\n"))
+(if (random_bool)
+    (print_value "Random was true\n")
+    (print_value "Random was false\n"))
 
 ;; In this case we use boxed values as return types.
 
-(if (c/random_bool)
+(if (random_bool)
     42
     46)
 
 ;; In this case we use the return value for FFI.
 
-(c/print_value (if (c/random_bool)
+(print_value (if (random_bool)
                    42
                    46))
-(c/print_value "\n")
+(print_value "\n")

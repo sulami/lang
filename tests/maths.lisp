@@ -1,4 +1,4 @@
 ;; This tests that primitive maths operations work.
 
-(c/print_value (+ 40 2))
-(c/print_value "\n")
+(print_value (+ 40 2))
+(print_value "\n")

@@ -138,7 +138,7 @@ class Environment:
         return block
 
     def declare_fn(self, name, return_type, arg_types, **kwargs):
-        self.lib['c/' + name] = ir.Function(
+        self.lib[name] = ir.Function(
             self.builder.module,
             ir.FunctionType(return_type, arg_types, **kwargs),
             name=name
@@ -146,7 +146,7 @@ class Environment:
 
     def unbox_value(self, val, out_type):
         debug('out_type', out_type)
-        val = self.builder.call(self.lib['c/unbox_value'], [val])
+        val = self.builder.call(self.lib['unbox_value'], [val])
         out_type = out_type or T_I32
         val_int = self.builder.bitcast(val, out_type.as_pointer())
         return self.builder.load(val_int)
@@ -159,7 +159,7 @@ class Environment:
         debug('args', [getattr(a, 'type', 'No type') for a in args])
 
         unboxed_args = []
-        if name.startswith('c/'):
+        if name.startswith(''):
             # external call, unbox
             for i in range(len(args)):
                 arg = args[i]
@@ -183,7 +183,7 @@ class Environment:
                 # Should probably add that when declaring, if we want
                 # proper arbitrary interop.
                 fn_retval = self.builder.call(
-                    self.lib['c/make_value'],
+                    self.lib['make_value'],
                     [T_I32(RUNTIME_TYPES['int']), store_value(self, fn_retval)]
                 )
         return fn_retval
@@ -270,7 +270,7 @@ def compile_native_op(env, expression, depth=0):
         result = env.builder.sdiv(lhs, rhs)
     if a in ['<', '<=', '==', '!=', '>=', '>']:
         result = env.builder.icmp_signed(a, lhs, rhs)
-    return env.call('c/make_value', [T_I32(RUNTIME_TYPES['int']), store_value(env, result)])
+    return env.call('make_value', [T_I32(RUNTIME_TYPES['int']), store_value(env, result)])
 
 def compile_box(env, expression, depth=0):
     assert 2 == len(expression), 'box takes exactly 1 argument'
@@ -278,7 +278,7 @@ def compile_box(env, expression, depth=0):
 
 def compile_progn(env, expression, depth=0):
     if [] == expression:
-        return env.call('c/make_value', [T_I32(RUNTIME_TYPES['nil']), NULL_PTR])
+        return env.call('make_value', [T_I32(RUNTIME_TYPES['nil']), NULL_PTR])
     else:
         retval = None
         for exp in expression:
@@ -320,7 +320,7 @@ def compile_lambda(env, expression, name=None, depth=0):
     env.builder.position_at_end(env.blocks[previous_block])
     fn_ptr = env.builder.bitcast(fn, T_VOID_PTR)
     fn_value = env.call(
-        'c/make_function', [store_value(env, make_string(fn_name)), fn_ptr]
+        'make_function', [store_value(env, make_string(fn_name)), fn_ptr]
     )
     return fn_value
 
@@ -389,7 +389,7 @@ def compile_function_call(env, expression, depth=0):
 
     # There is a lot of pointer following and struct indexing going on
     # here until we finally get to the function pointer.
-    primitive_ptr = env.builder.call(env.lib['c/unbox_value'], [fn_value])
+    primitive_ptr = env.builder.call(env.lib['unbox_value'], [fn_value])
     fn_struct_ptr = env.builder.bitcast(primitive_ptr, T_FUNCTION_PTR)
     fn_struct_ptr = env.builder.load(fn_struct_ptr)
     fn_struct_ptr = env.builder.extract_value(fn_struct_ptr, 0)
@@ -412,14 +412,14 @@ def compile_constant_string(env, expression):
     val = make_string(eval(expression))
     vptr = store_value(env, val)
     typ = ir.Constant(T_I32, RUNTIME_TYPES['string'])
-    runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
+    runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
     return runtime_value
 
 def compile_constant_int(env, expression):
     val = ir.Constant(T_I32, int(expression))
     vptr = store_value(env, val)
     typ = ir.Constant(T_I32, RUNTIME_TYPES['int'])
-    runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
+    runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
     return runtime_value
 
 def compile_constant_float(env, expression):
@@ -430,20 +430,20 @@ def compile_constant_float(env, expression):
     val = ir.Constant(T_F32, float(expression))
     vptr = store_value(env, val)
     typ = ir.Constant(T_I32, RUNTIME_TYPES['float'])
-    runtime_value = env.call('c/make_value', [typ, vptr])
+    runtime_value = env.call('make_value', [typ, vptr])
     return runtime_value
 
 def compile_constant_bool(env, expression):
     val = ir.Constant(T_BOOL, 'true' == expression)
     vptr = store_value(env, val)
     typ = ir.Constant(T_I32, RUNTIME_TYPES['bool'])
-    runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
+    runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
     return runtime_value
 
 def compile_nil(env, expression):
     vptr = NULL_PTR
     typ = ir.Constant(T_I32, RUNTIME_TYPES['nil'])
-    runtime_value = env.builder.call(env.lib['c/make_value'], [typ, vptr])
+    runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
     return runtime_value
 
 def compile_symbol(env, expression):
@@ -507,7 +507,7 @@ def compile_main(ast):
 
     # Dispatch to runtime main function
     argc, argv = main_fn.args
-    env.builder.ret(env.builder.call(env.lib["c/nebula_main"], [argc, argv]))
+    env.builder.ret(env.builder.call(env.lib["nebula_main"], [argc, argv]))
 
     # User code implicit main
     usercode_f_type = ir.FunctionType(T_I32, [T_I32, T_VOID_PTR.as_pointer()])
@@ -524,7 +524,7 @@ def compile_main(ast):
     env.builder.position_at_end(usercode_main_entry_block)
     ctr_ptr = env.builder.alloca(argc.type)
     env.builder.store(argc, ctr_ptr)
-    cons = env.call('c/make_value', [T_I32(RUNTIME_TYPES['nil']), NULL_PTR])
+    cons = env.call('make_value', [T_I32(RUNTIME_TYPES['nil']), NULL_PTR])
     cons_ptr = env.builder.alloca(cons.type)
     env.builder.store(cons, cons_ptr)
     env.builder.branch(loop_block)
@@ -534,13 +534,13 @@ def compile_main(ast):
     current_ctr = env.builder.load(ctr_ptr)
     new_ctr = env.builder.sub(current_ctr, T_I32(1))
     new_ctr_value = env.call(
-        'c/make_value',
+        'make_value',
         [T_I32(RUNTIME_TYPES['int']), store_value(env, new_ctr)]
     )
     this_argv = env.builder.gep(argv, [new_ctr])
     this_argv = env.builder.load(this_argv)
-    this_argv_value = env.call('c/make_value', [T_I32(RUNTIME_TYPES['string']), this_argv])
-    new_cons = env.call('c/cons', [this_argv_value, env.builder.load(cons_ptr)])
+    this_argv_value = env.call('make_value', [T_I32(RUNTIME_TYPES['string']), this_argv])
+    new_cons = env.call('cons', [this_argv_value, env.builder.load(cons_ptr)])
     env.builder.store(new_cons, cons_ptr)
     env.builder.store(new_ctr, ctr_ptr)
     condition = env.builder.icmp_signed('<', T_I32(0), new_ctr)
@@ -549,9 +549,9 @@ def compile_main(ast):
     # Done looping
     env.builder.position_at_end(exit_block)
     # This prints out the argv cons
-    # env.call('c/print_value', [env.builder.load(cons_ptr)])
-    # env.call('c/print_value', [
-    #     env.call('c/make_value', [
+    # env.call('print_value', [env.builder.load(cons_ptr)])
+    # env.call('print_value', [
+    #     env.call('make_value', [
     #         T_I32(RUNTIME_TYPES['string']),
     #         store_value(env, make_string('\n'))
     #     ])

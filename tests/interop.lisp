@@ -2,16 +2,16 @@
 ;; The functions referenced here are declared with their desired
 ;; types, which helps casting.
 
-(c/print_value false)
-(c/print_value "\n")
+(print_value false)
+(print_value "\n")
 
-(c/print_value 42)
-(c/print_value "\n")
+(print_value 42)
+(print_value "\n")
 
-(c/print_value 3.14159)
-(c/print_value "\n")
+(print_value 3.14159)
+(print_value "\n")
 
-(c/print_value (+ 38 4))
-(c/print_value "\n")
+(print_value (+ 38 4))
+(print_value "\n")
 
-(c/print_value "a string\n")
+(print_value "a string\n")

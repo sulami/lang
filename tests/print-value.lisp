@@ -1,13 +1,13 @@
 ;; This tests that printing values works out.
 
-(c/print_value nil)
-(c/print_value "\n")
+(print_value nil)
+(print_value "\n")
 
-(c/print_value 42)
-(c/print_value "\n")
+(print_value 42)
+(print_value "\n")
 
-(c/print_value 3.14159)
-(c/print_value "\n")
+(print_value 3.14159)
+(print_value "\n")
 
-(c/print_value "foo")
-(c/print_value "\n")
+(print_value "foo")
+(print_value "\n")

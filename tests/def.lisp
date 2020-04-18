@@ -2,4 +2,4 @@
 
 (def x 42)
 
-(c/print_value x)
+(print_value x)
