@@ -299,9 +299,9 @@ def compile_let(env, expression, depth=0):
     env.scopes.pop()
     return retval
 
-def compile_defun(env, expression, depth=0):
-    assert 4 <= len(expression), 'defun takes at least 3 arguments'
-
+def compile_lambda(env, expression, depth=0):
+    assert 4 <= len(expression), 'lambda takes at least 3 arguments'
+    # TODO Alter function name (expression[1]) to avoid name clashes.
     fn_name = expression[1]
     previous_block = env.current_block_name()
     args = expression[2]
@@ -317,10 +317,16 @@ def compile_defun(env, expression, depth=0):
 
     env.builder.position_at_end(env.blocks[previous_block])
     fn_ptr = env.builder.bitcast(fn, T_VOID_PTR)
-    fn_struct = env.call(
+    fn_value = env.call(
         'c/make_function', [store_value(env, make_string(fn_name)), fn_ptr]
     )
-    return fn_struct
+    env.scopes[-1][fn_name] = fn_value
+    return fn_value
+
+def compile_defun(env, expression, depth=0):
+    assert 4 <= len(expression), 'defun takes at least 3 arguments'
+    fn = compile_lambda(env, expression, depth=depth+1)
+    return fn
 
 def compile_def(env, expression, depth=0):
     assert 3 == len(expression), 'def takes exactly two arguments'
@@ -333,12 +339,6 @@ def compile_recur(env, expression, depth=0):
     args = [compile_expression(env, arg) for arg in expression[1:]]
     current_fn_name = env.builder.function.name
     return env.call(current_fn_name, args, tail=True)
-
-def compile_lambda(env, expression, depth=0):
-    assert 4 <= len(expression), 'lambda takes at least 3 arguments'
-    # TODO Alter function name (expression[1]) to avoid name clashes.
-    fn = compile_defun(env, expression, depth=depth+1)
-    return fn
 
 def compile_function_call(env, expression, depth=0):
     if 'lambda' == expression[0]:
@@ -442,10 +442,11 @@ def compile_nil(env, expression):
     return runtime_value
 
 def compile_symbol(env, expression):
+    debug('trying to resolve', expression)
     for scope in reversed(env.scopes):
+        debug('searching scope:', scope.keys())
         if expression in scope:
-            this = scope[expression]
-            return this
+            return scope[expression]
     raise Exception('Could not find symbol ' + expression + ' in local scope')
 
 def compile_expression(env, expression, depth=0):
