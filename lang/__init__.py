@@ -370,17 +370,19 @@ def compile_function_call(env, expression, depth=0):
         return compile_native_op(env, expression, depth=depth+1)
 
     # else: function call
-    # TODO currently only static function names
     args = []
     for exp in expression[1:]:
         args += [compile_expression(env, exp, depth=depth+1)]
-    try:
-        # dynamic symbol lookup
-        fn_value = compile_symbol(env, expression[0])
-    except:
-        # try static lookup
-        fn = env.lib[expression[0]]
+
+    if isinstance(expression[0], list):
+        # Function is a function call? Eval it.
+        fn_value = compile_expression(env, expression[0])
+    elif expression[0] in env.lib:
+        # If it's a global function just jump there.
         return env.call(expression[0], args)
+    elif compile_symbol(env, expression[0]):
+        # Try looking it up in the local scope first.
+        fn_value = compile_symbol(env, expression[0])
 
     # There is a lot of pointer following and struct indexing going on
     # here until we finally get to the function pointer.
@@ -447,7 +449,8 @@ def compile_symbol(env, expression):
         debug('searching scope:', scope.keys())
         if expression in scope:
             return scope[expression]
-    raise Exception('Could not find symbol ' + expression + ' in local scope')
+    debug('Could not find symbol ' + expression + ' in local scope')
+    return None
 
 def compile_expression(env, expression, depth=0):
     debug(' ' * (depth + 1) + 'Compiling expression: ' + str(expression))

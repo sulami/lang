@@ -24,3 +24,18 @@
 
 (c/print_value (apply-function baz 39))
 (c/print_value "\n")
+
+;; We should be able to return functions from functions.
+(defun quux ()
+  (lambda a-function (x) (+ 5 x)))
+
+(c/print_value ((quux) 37))
+(c/print_value "\n")
+
+;; Closures
+;; TODO totally don't work right now
+(defun add-n (n)
+  (lambda another-function (x) (+ n x)))
+
+(c/print_value ((add-n 10) 32))
+(c/print_value "\n")
