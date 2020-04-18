@@ -453,6 +453,7 @@ def compile_main(ast):
     env.declare_fn("value_equal", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
+    env.declare_fn("debug", T_VOID, [T_VOID_PTR])
     env.declare_fn("cons", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("car", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn("cdr", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])

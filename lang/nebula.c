@@ -264,3 +264,7 @@ struct Value* random_bool() {
   u->b = rand() % 2;
   return make_value(BOOL, u);
 }
+
+void debug(void* x) {
+  printf("DEBUG: base 10: %u; base 16: %X\n", (unsigned int)x, (unsigned int)x);
+}
