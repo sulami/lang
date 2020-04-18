@@ -322,13 +322,13 @@ def compile_lambda(env, expression, name=None, depth=0):
     fn_value = env.call(
         'c/make_function', [store_value(env, make_string(fn_name)), fn_ptr]
     )
-    env.scopes[-1][fn_name] = fn_value
     return fn_value
 
 def compile_defun(env, expression, depth=0):
     assert 4 <= len(expression), 'defun takes at least 3 arguments'
     fn_name = expression.pop(1)
     fn = compile_lambda(env, expression, name=fn_name, depth=depth+1)
+    env.scopes[-1][fn_name] = fn
     return fn
 
 def compile_def(env, expression, depth=0):
