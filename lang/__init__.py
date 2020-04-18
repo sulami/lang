@@ -28,6 +28,8 @@ T_VALUE_STRUCT_PTR = T_VALUE_STRUCT.as_pointer()
 # the type we want.
 T_PRIMITIVE = ir.LiteralStructType([T_I64])
 T_PRIMITIVE_PTR = T_PRIMITIVE.as_pointer()
+T_FUNCTION = ir.LiteralStructType([T_VOID_PTR, T_VOID_PTR])
+T_FUNCTION_PTR = T_FUNCTION.as_pointer()
 
 # Type mapping (for runtime values)
 RUNTIME_TYPES = {
@@ -37,6 +39,7 @@ RUNTIME_TYPES = {
     'float': 3,
     'string': 100,
     'cons': 101,
+    'function': 102,
 }
 
 # Values
@@ -313,7 +316,11 @@ def compile_defun(env, expression, depth=0):
     env.scopes.pop()
 
     env.builder.position_at_end(env.blocks[previous_block])
-    return fn
+    fn_ptr = env.builder.bitcast(fn, T_VOID_PTR)
+    fn_struct = env.call(
+        'c/make_function', [store_value(env, make_string(fn_name)), fn_ptr]
+    )
+    return fn_struct
 
 def compile_def(env, expression, depth=0):
     assert 3 == len(expression), 'def takes exactly two arguments'
@@ -327,7 +334,16 @@ def compile_recur(env, expression, depth=0):
     current_fn_name = env.builder.function.name
     return env.call(current_fn_name, args, tail=True)
 
+def compile_lambda(env, expression, depth=0):
+    assert 4 <= len(expression), 'lambda takes at least 3 arguments'
+    # TODO Alter function name (expression[1]) to avoid name clashes.
+    fn = compile_defun(env, expression, depth=depth+1)
+    return fn
+
 def compile_function_call(env, expression, depth=0):
+    if 'lambda' == expression[0]:
+        return compile_lambda(env, expression, depth=depth+1)
+
     if 'recur' == expression[0]:
         return compile_recur(env, expression, depth=depth+1)
 
@@ -355,12 +371,33 @@ def compile_function_call(env, expression, depth=0):
 
     # else: function call
     # TODO currently only static function names
-    # types if we know them
     args = []
     for exp in expression[1:]:
         args += [compile_expression(env, exp, depth=depth+1)]
-    fn = env.lib[expression[0]]
-    return env.call(expression[0], args)
+    try:
+        # dynamic symbol lookup
+        fn_value = compile_symbol(env, expression[0])
+    except:
+        # try static lookup
+        fn = env.lib[expression[0]]
+        return env.call(expression[0], args)
+
+    # There is a lot of pointer following and struct indexing going on
+    # here until we finally get to the function pointer.
+    primitive_ptr = env.builder.call(env.lib['c/unbox_value'], [fn_value])
+    fn_struct_ptr = env.builder.bitcast(primitive_ptr, T_FUNCTION_PTR)
+    fn_struct_ptr = env.builder.load(fn_struct_ptr)
+    fn_struct_ptr = env.builder.extract_value(fn_struct_ptr, 0)
+    fn_struct_ptr = env.builder.bitcast(fn_struct_ptr, T_FUNCTION_PTR)
+    fn_ptr_ptr = env.builder.gep(fn_struct_ptr, [T_I32(0), T_I32(1)])
+
+    fn_ptr = env.builder.load(fn_ptr_ptr)
+    fn_ptr_type = ir.FunctionType(
+        T_VALUE_STRUCT_PTR,
+        [T_VALUE_STRUCT_PTR for _ in range(len(args))]
+    ).as_pointer()
+    fn_ptr = env.builder.bitcast(fn_ptr, fn_ptr_type)
+    return env.builder.call(fn_ptr, args)
 
 def compile_constant_string(env, expression):
     # Strip quotation marks
@@ -451,6 +488,7 @@ def compile_main(ast):
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
     env.declare_fn("value_equal", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
+    env.declare_fn('make_function', T_VALUE_STRUCT_PTR, [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
     env.declare_fn("debug", T_VOID, [T_VOID_PTR])

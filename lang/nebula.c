@@ -47,18 +47,24 @@ int nebula_main(int argc, char** argv) {
 
 // Primitive values are <100.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3,
-           STRING = 100, CONS = 101};
+           STRING = 100, CONS = 101, FUNCTION = 102};
 union Primitive {
   bool b;
   int i;
   float f;
   char* string;
   struct Cons* cons;
+  struct Function* func;
 };
 
 struct Value {
   enum Type type;
   union Primitive* value;
+};
+
+struct Function {
+  char* name;
+  void* fn_ptr;
 };
 
 struct Value* make_value(enum Type type, union Primitive* value) {
@@ -68,6 +74,8 @@ struct Value* make_value(enum Type type, union Primitive* value) {
   if (NULL == retval) {
     exit(ENOMEM);
   }
+
+  /* printf("making value - ptr: %X - type: %d\n", retval, type); */
 
   // We have to allocate the actual value on the heap, as LLVM stores
   // things on the stack only, so we'd lose our boxed value when
@@ -86,12 +94,33 @@ struct Value* make_value(enum Type type, union Primitive* value) {
     retval->value = value;
   }
 
+  /* printf(" primitive: %X\n", retval->value); */
   retval->type = type;
   return retval;
 }
 
 enum Type value_type(struct Value* value) {
   return value->type;
+}
+
+struct Value* make_function(char* name, void* fn_ptr) {
+  struct Function* f = malloc(sizeof(struct Function));
+  if (NULL == f) {
+    exit(ENOMEM);
+  }
+  size_t name_length = strlen(name);
+  char* new_name = malloc(name_length * sizeof(char));
+  if (NULL == new_name) {
+    exit(ENOMEM);
+  }
+  strcpy(new_name, name);
+  f->name = new_name;
+  f->fn_ptr = fn_ptr;
+  /* printf("making function - fn name: %s; fn ptr: %X; struct ptr: %X\n", f->name, f->fn_ptr, f); */
+
+  union Primitive* u = calloc(1, sizeof(union Primitive));
+  u->func = f;
+  return make_value(FUNCTION, u);
 }
 
 struct Value* value_equal(struct Value* a, struct Value* b) {
@@ -119,6 +148,9 @@ struct Value* value_equal(struct Value* a, struct Value* b) {
     case CONS:
       result = (value_equal(car(a), car(b)) && value_equal(cdr(a), cdr(b)));
       break;
+    case FUNCTION:
+      result = (a->value->func->name == b->value->func->name);
+      break;
     default:
       result = false;
       break;
@@ -135,6 +167,7 @@ union Primitive* unbox_value(struct Value* value) {
 }
 
 void print_value(struct Value* value) {
+  /* printf("print_value: %d: %X\n", value->type, value->value); */
   switch (value->type) {
   case NIL:
     printf("nil");
@@ -157,6 +190,9 @@ void print_value(struct Value* value) {
     printf(" ");
     print_value(cdr(value));
     printf(")");
+    break;
+  case FUNCTION:
+    printf("<function: %s>", value->value->func->name);
     break;
   }
 }
