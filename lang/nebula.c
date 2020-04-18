@@ -53,7 +53,7 @@ union Primitive {
   int i;
   float f;
   char* string;
-  struct cons_cell* cons;
+  struct Cons* cons;
 };
 
 struct Value {
@@ -186,7 +186,7 @@ struct Value* read_file(const struct Value* name, const struct Value* m) {
 
 /* Cons cells */
 
-struct cons_cell {
+struct Cons {
   struct Value* car;
   struct Value* cdr;
 };
@@ -196,7 +196,7 @@ struct Value* cons(struct Value* head, struct Value* tail) {
     return make_value(NIL, NULL);
   }
 
-  struct cons_cell* new_cons = malloc(sizeof(struct cons_cell));
+  struct Cons* new_cons = malloc(sizeof(struct Cons));
   if (NULL == new_cons) {
     exit(ENOMEM);
   }
@@ -214,7 +214,7 @@ struct Value* car(struct Value* c) {
   if (NULL == value) {
     return make_value(NIL, NULL);
   }
-  struct cons_cell* co = value->cons;
+  struct Cons* co = value->cons;
   if (NULL == co) {
     return make_value(NIL, NULL);
   }
@@ -226,7 +226,7 @@ struct Value* cdr(struct Value* c) {
   if (NULL == value) {
     return make_value(NIL, NULL);
   }
-  struct cons_cell* co = value->cons;
+  struct Cons* co = value->cons;
   if (NULL == co) {
     return make_value(NIL, NULL);
   }
