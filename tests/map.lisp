@@ -25,6 +25,8 @@
   (reverse (map* f l nil)))
 
 (let ((list (c/cons 1 (c/cons 2 (c/cons 3 nil))))
-      (double (lambda double (x) (* 2 x))))
+      (double (lambda (x) (* 2 x))))
+  (c/print_value double)
+  (c/print_value "\n")
   (c/print_value (map double list))
   (c/print_value "\n"))

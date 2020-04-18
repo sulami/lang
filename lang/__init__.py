@@ -1,6 +1,8 @@
 __version__ = '0.1.0'
 
+import random
 import re
+import string
 import subprocess
 import sys
 import tempfile
@@ -299,15 +301,15 @@ def compile_let(env, expression, depth=0):
     env.scopes.pop()
     return retval
 
-def compile_lambda(env, expression, depth=0):
-    assert 4 <= len(expression), 'lambda takes at least 3 arguments'
-    # TODO Alter function name (expression[1]) to avoid name clashes.
-    fn_name = expression[1]
+def compile_lambda(env, expression, name=None, depth=0):
+    assert 3 <= len(expression), 'lambda takes at least 3 arguments'
+    fn_name = name or 'fn_{}'.format(''.join(random.choice(string.ascii_lowercase)
+                                             for _ in range(6)))
     previous_block = env.current_block_name()
-    args = expression[2]
+    args = expression[1]
     fn = env.add_fn(fn_name, len(args))
 
-    body = (expression[3:])
+    body = (expression[2:])
     fn_args = fn.args
     new_scope = dict(zip ([arg for arg in args], fn.args))
     env.scopes.append(new_scope)
@@ -325,7 +327,8 @@ def compile_lambda(env, expression, depth=0):
 
 def compile_defun(env, expression, depth=0):
     assert 4 <= len(expression), 'defun takes at least 3 arguments'
-    fn = compile_lambda(env, expression, depth=depth+1)
+    fn_name = expression.pop(1)
+    fn = compile_lambda(env, expression, name=fn_name, depth=depth+1)
     return fn
 
 def compile_def(env, expression, depth=0):
