@@ -84,7 +84,7 @@ def compile_ir(engine, llvm_ir):
     engine.run_static_constructors()
     return mod
 
-def store_value(env, value, string=False):
+def store_value(env, value):
     """
     Compiles a set of instructions to store a value and returns an
     anonymised pointer to it.
@@ -261,7 +261,6 @@ def compile_native_op(env, expression, depth=0):
         result = env.builder.sub(lhs, rhs)
     if '*' == a:
         result = env.builder.mul(lhs, rhs)
-        return env.call('c/make_value', [T_I32(RUNTIME_TYPES['int']), store_value(env, result)])
     if '/' == a:
         result = env.builder.sdiv(lhs, rhs)
     if a in ['<', '<=', '==', '!=', '>=', '>']:
