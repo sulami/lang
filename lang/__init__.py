@@ -228,7 +228,7 @@ def compile_if(env, expression, depth=0):
     _, a, b, c = expression
     condition = compile_expression(env, a, depth=depth+1)
     if T_VALUE_STRUCT_PTR == condition.type:
-        condition = env.unbox_value(condition, T_BOOL)
+        condition = env.builder.call(env.lib['value_truthy'], [condition])
 
     previous_block = env.builder.block
     endif_block = env.add_block('endif')
@@ -509,6 +509,7 @@ def compile_main(ast):
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
     env.declare_fn("value_equal", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
+    env.declare_fn("value_truthy", T_BOOL, [T_VALUE_STRUCT_PTR])
     env.declare_fn('make_function', T_VALUE_STRUCT_PTR, [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn('concat_strings', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])

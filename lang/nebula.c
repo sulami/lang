@@ -11,17 +11,6 @@ struct Value* car(struct Value*);
 
 /* Runtime */
 
-/* void repl() { */
-/*   char* prompt = "> "; */
-/*   char* input = NULL; */
-/*   size_t len; */
-/*   while (true) { */
-/*     getline(&input, &len, stdin); */
-/*     puts(input); */
-/*     free(input); */
-/*   } */
-/* } */
-
 void init_nebula() {
   puts("Nebula initalised.");
   srand(time(NULL));
@@ -36,10 +25,6 @@ LLVM main -> nebula_main -> usercode_main
  */
 int nebula_main(int argc, char** argv) {
   init_nebula();
-  /* for (int i = 0; i < argc; i++) { */
-  /*   puts(argv[i]); */
-  /* } */
-  // XXX Forward command line arguments to usercode for now.
   return usercode_main(argc, argv);
 }
 
@@ -160,6 +145,35 @@ struct Value* value_equal(struct Value* a, struct Value* b) {
   union Primitive* u = calloc(1, sizeof(union Primitive));
   u->b = result;
   return make_value(BOOL, u);
+}
+
+bool value_truthy(struct Value* value) {
+  switch (value->type) {
+  case NIL:
+    return false;
+    break;
+  case BOOL:
+    return value->value->b;
+    break;
+  case INT:
+    return 0 < value->value->i;
+    break;
+  case FLOAT:
+    return 0 < value->value->f;
+    break;
+  case STRING:
+    return 0 < strlen((char *)value->value);
+    break;
+  case CONS:
+    return NIL != value->value->cons;
+    break;
+  case FUNCTION:
+    return true;
+    break;
+  default:
+    return false;
+    break;
+  }
 }
 
 union Primitive* unbox_value(struct Value* value) {
