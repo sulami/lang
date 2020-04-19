@@ -532,6 +532,7 @@ def compile_main(ast):
     env.declare_fn('make_function', T_VALUE_STRUCT_PTR, [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn('concat_strings', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn('string_to_cons', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
+    env.declare_fn('cons_to_string', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("write_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])

@@ -20,7 +20,7 @@
 (defun spit (file-name s)
   (write_file file-name "w" s))
 
-;; Values
+;; Logic
 
 (defun not (x)
   (if x false true))
@@ -31,8 +31,21 @@
 (defun or (x y)
   (if x true y))
 
+(defun xor (x y)
+  (if x y (not y)))
+
+(defun if-not (condition then else)
+  (if (not condition)
+      then
+      else))
+
+;; Values
+
 (defun = (x y)
   (value_equal x y))
+
+(defun not= (x y)
+  (not (= x y)))
 
 (defun nil? (x)
   (= nil x))
@@ -50,6 +63,9 @@
 
 (defun str->cons (s)
   (string_to_cons s))
+
+(defun cons->str (l)
+  (cons_to_string l))
 
 ;; Lists
 
@@ -83,7 +99,8 @@
 
 (defun take (n l)
   (let ((take* (lambda (n from to)
-                 (if (nil? from)
+                 (if (or (nil? from)
+                         (= 0 n))
                      to
                      (recur (dec n)
                             (cdr from)
@@ -94,6 +111,16 @@
   (if (= 0 n)
       l
       (recur (dec n) (cdr l))))
+
+(defun take-while (f l)
+  (let ((take-while* (lambda (f from to)
+                       (if (or (nil? from)
+                               (not (f (car from))))
+                           to
+                           (recur f
+                                  (cdr from)
+                                  (cons (car from) to))))))
+    (reverse (take-while* f l nil))))
 
 (defun filter (f l)
   (let ((filter* (lambda (f from to)
@@ -136,7 +163,7 @@
     (println "...")
     (let ((source-code (slurp source-file))
           (target-file "output"))
-      (println (str->cons source-code))
+      (println (cons->str (str->cons source-code)))
       ;; (println (concat "this is " "a string"))
       ;; (println source-code)
       ;; (spit target-file source-code)

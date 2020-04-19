@@ -49,6 +49,11 @@ struct Value {
   union Primitive* value;
 };
 
+struct Cons {
+  struct Value* car;
+  struct Value* cdr;
+};
+
 struct Function {
   char* name;
   void* fn_ptr;
@@ -254,6 +259,28 @@ struct Value* string_to_cons(const struct Value* s) {
   return retval;
 }
 
+struct Value* cons_to_string(const struct Value* l) {
+  size_t len = 0;
+  const struct Value* head = l;
+  // Walk once to get the length.
+  while (NIL != head->value) {
+    ++len;
+    head = head->value->cons->cdr;
+  }
+  char* str = malloc((1 + len) * sizeof(char));
+  if (NULL == str) {
+    exit(ENOMEM);
+  }
+  head = l;
+  // Walk again to fill the string.
+  for (size_t pos = 0; pos < len; ++pos) {
+    *(str+pos) = (char)head->value->cons->car->value->i;
+    /* sprintf((char*), str + pos); */
+    head = head->value->cons->cdr;
+  }
+  return make_value(STRING, (union Primitive*)str);
+}
+
 /* I/O */
 
 struct Value* read_file(const struct Value* name, const struct Value* m) {
@@ -293,11 +320,6 @@ struct Value* write_file(const struct Value* name,
 }
 
 /* Cons cells */
-
-struct Cons {
-  struct Value* car;
-  struct Value* cdr;
-};
 
 struct Value* cons(struct Value* head, struct Value* tail) {
   if (NULL == head) {
