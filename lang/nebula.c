@@ -6,6 +6,7 @@
 #include <time.h>
 
 int usercode_main(int, char**);
+struct Value* cons(struct Value*, struct Value*);
 struct Value* cdr(struct Value*);
 struct Value* car(struct Value*);
 
@@ -30,9 +31,10 @@ int nebula_main(int argc, char** argv) {
 
 /* Values (the runtime understanding) */
 
-// Primitive values are <100.
-enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3,
+// Primitive values are <100, pointers >=100.
+enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4,
            STRING = 100, CONS = 101, FUNCTION = 102};
+// FIXME Strings are cast, but struct pointers aren't.
 union Primitive {
   bool b;
   int i;
@@ -127,6 +129,9 @@ struct Value* value_equal(struct Value* a, struct Value* b) {
     case FLOAT:
       result = (a->value->f == b->value->f);
       break;
+    case CHAR:
+      result = (a->value->i == b->value->i);
+      break;
     case STRING:
       result = (0 == strcmp((char*)a->value, (char*)b->value));
       break;
@@ -160,6 +165,9 @@ bool value_truthy(struct Value* value) {
     break;
   case FLOAT:
     return 0 < value->value->f;
+    break;
+  case CHAR:
+    return true;
     break;
   case STRING:
     return 0 < strlen((char *)value->value);
@@ -195,6 +203,9 @@ void print_value(struct Value* value) {
   case FLOAT:
     printf("%f", value->value->f);
     break;
+  case CHAR:
+    printf("\\%c", value->value->i);
+    break;
   case STRING:
     printf("%s", (char *)(value->value));
     break;
@@ -223,6 +234,18 @@ struct Value* concat_strings(const struct Value* a, const struct Value* b) {
   }
   snprintf(cstring, total_len, "%s%s", astring, bstring);
   return make_value(STRING, (union Primitive*)cstring);
+}
+
+struct Value* string_to_cons(const struct Value* s) {
+  const char* str = (char*)s->value;
+  struct Value* retval = cons(NULL, NULL);
+  size_t len = strlen(str);
+  for (size_t i = len; 0 < i; --i) {
+    union Primitive* u = calloc(1, sizeof(union Primitive));
+    u->i = *(str+i-1);
+    retval = cons(make_value(CHAR, u) , retval);
+  }
+  return retval;
 }
 
 /* I/O */

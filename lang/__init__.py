@@ -39,6 +39,7 @@ RUNTIME_TYPES = {
     'bool': 1,
     'int': 2,
     'float': 3,
+    'char': 4,
     'string': 100,
     'cons': 101,
     'function': 102,
@@ -460,6 +461,14 @@ def compile_nil(env, expression):
     runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
     return runtime_value
 
+def compile_constant_char(env, expression):
+    # Chars are encoded as integers.
+    val = ir.Constant(T_I32, ord(expression[1]))
+    vptr = store_value(env, val)
+    typ = ir.Constant(T_I32, RUNTIME_TYPES['char'])
+    runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
+    return runtime_value
+
 def compile_symbol(env, expression):
     debug('trying to resolve', expression)
     for scope in reversed(env.scopes):
@@ -482,6 +491,9 @@ def compile_expression(env, expression, depth=0):
     elif '"' == expression[0]:
         # constant string
         return compile_constant_string(env, expression)
+    elif re.match('^\\\\\w$', expression):
+        # char (NOTE: this regex above matches "\c")
+        return compile_constant_char(env, expression)
     elif re.match('^-?[0-9]+\.[0-9]+$',  expression):
         # constant float
         return compile_constant_float(env, expression)
@@ -512,6 +524,7 @@ def compile_main(ast):
     env.declare_fn("value_truthy", T_BOOL, [T_VALUE_STRUCT_PTR])
     env.declare_fn('make_function', T_VALUE_STRUCT_PTR, [T_VOID_PTR, T_VOID_PTR])
     env.declare_fn('concat_strings', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
+    env.declare_fn('string_to_cons', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("write_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
