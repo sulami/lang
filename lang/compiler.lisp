@@ -17,6 +17,9 @@
 (defun slurp (file-name)
   (read_file file-name "r"))
 
+(defun spit (file-name s)
+  (write_file file-name "w" s))
+
 ;; Values
 
 (defun not (x)
@@ -110,6 +113,10 @@
     (print "Compiling ")
     (print source-file)
     (println "...")
-    (println (slurp source-file))))
+    (let ((source-code (slurp source-file))
+          (target-file "output"))
+      (println source-code)
+      (spit target-file source-code)
+      (println "Done!"))))
 
 (compile argv)

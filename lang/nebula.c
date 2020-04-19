@@ -220,6 +220,21 @@ struct Value* read_file(const struct Value* name, const struct Value* m) {
   return make_value(STRING, (union Primitive*)buffer);
 }
 
+struct Value* write_file(const struct Value* name,
+                         const struct Value* m,
+                         const struct Value* s) {
+  const char* file_name = (char*)name->value;
+  const char* mode = (char*)m->value;
+  const char* str =  (char*)s->value;
+  FILE* fp = fopen(file_name, mode);
+  if (NULL == fp) {
+    exit(ENOMEM);
+  }
+  fputs(str, fp);
+  fclose(fp);
+  return make_value(NIL, NULL);
+}
+
 /* Cons cells */
 
 struct Cons {
