@@ -19,3 +19,11 @@
                    42
                    46))
 (print_value "\n")
+
+;; Nested ifs.
+(print_value (if (random_bool)
+                 42
+                 (if (random_bool)
+                     46
+                     47)))
+(print_value "\n")

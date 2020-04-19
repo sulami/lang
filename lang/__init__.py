@@ -233,21 +233,35 @@ def compile_if(env, expression, depth=0):
     previous_block = env.builder.block
     endif_block = env.add_block('endif')
 
+    # Then
     then_block = env.add_block('then')
     then_result = compile_expression(env, b, depth=depth+1)
+    # Add another else block so the PHI knows where the branch will
+    # come from, even if the inner expression changed blocks. Patch up
+    # the inner block to jump there.
+    then_inner_block = env.builder.block
+    then_end_block = env.add_block('then_end')
     env.builder.branch(endif_block)
+    env.builder.position_at_end(then_inner_block)
+    env.builder.branch(then_end_block)
 
+    # Else
     else_block = env.add_block('else')
     else_result = compile_expression(env, c, depth=depth+1)
+    # See above.
+    else_inner_block = env.builder.block
+    else_end_block = env.add_block('else_end')
     env.builder.branch(endif_block)
+    env.builder.position_at_end(else_inner_block)
+    env.builder.branch(else_end_block)
 
     with env.builder.goto_block(previous_block):
         env.builder.cbranch(condition, then_block, else_block)
 
     env.builder.position_at_end(endif_block)
     phi = env.builder.phi(T_VALUE_STRUCT_PTR)
-    phi.add_incoming(then_result, then_block)
-    phi.add_incoming(else_result, else_block)
+    phi.add_incoming(then_result, then_end_block)
+    phi.add_incoming(else_result, else_end_block)
     return phi
 
 def compile_native_op(env, expression, depth=0):
@@ -496,6 +510,7 @@ def compile_main(ast):
     env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
     env.declare_fn("value_equal", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn('make_function', T_VALUE_STRUCT_PTR, [T_VOID_PTR, T_VOID_PTR])
+    env.declare_fn('concat_strings', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("write_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
