@@ -204,7 +204,13 @@ void print_value(struct Value* value) {
     printf("%f", value->value->f);
     break;
   case CHAR:
-    printf("\\%c", value->value->i);
+    if (10 == value->value->i) {
+      printf("\\newline");
+    } else if (32 == value->value->i) {
+      printf("\\space");
+    } else {
+      printf("\\%c", value->value->i);
+    }
     break;
   case STRING:
     printf("%s", (char *)(value->value));

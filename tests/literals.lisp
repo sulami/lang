@@ -25,3 +25,7 @@
 
 (print_value \s)
 (print_value "\n")
+(print_value \space)
+(print_value "\n")
+(print_value \newline)
+(print_value "\n")

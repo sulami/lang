@@ -463,7 +463,14 @@ def compile_nil(env, expression):
 
 def compile_constant_char(env, expression):
     # Chars are encoded as integers.
-    val = ir.Constant(T_I32, ord(expression[1]))
+    if 2 == len(expression):
+        val = ir.Constant(T_I32, ord(expression[1]))
+    else:
+        char_mapping = {
+            'newline': '\n',
+            'space': ' ',
+        }
+        val = ir.Constant(T_I32, ord(char_mapping[expression[1:]]))
     vptr = store_value(env, val)
     typ = ir.Constant(T_I32, RUNTIME_TYPES['char'])
     runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
@@ -491,7 +498,7 @@ def compile_expression(env, expression, depth=0):
     elif '"' == expression[0]:
         # constant string
         return compile_constant_string(env, expression)
-    elif re.match('^\\\\\w$', expression):
+    elif re.match('^\\\\(\w|space|newline)$', expression):
         # char (NOTE: this regex above matches "\c")
         return compile_constant_char(env, expression)
     elif re.match('^-?[0-9]+\.[0-9]+$',  expression):

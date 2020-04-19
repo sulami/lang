@@ -48,6 +48,9 @@
 (defun concat (x y)
   (concat_strings x y))
 
+(defun str->cons (s)
+  (string_to_cons s))
+
 ;; Lists
 
 (defun cadr (x)
@@ -133,6 +136,7 @@
     (println "...")
     (let ((source-code (slurp source-file))
           (target-file "output"))
+      (println (str->cons source-code))
       ;; (println (concat "this is " "a string"))
       ;; (println source-code)
       ;; (spit target-file source-code)
