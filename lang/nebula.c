@@ -197,6 +197,20 @@ void print_value(struct Value* value) {
   }
 }
 
+/* Strings */
+
+struct Value* concat_strings(const struct Value* a, const struct Value* b) {
+  const char* astring = (char*)a->value;
+  const char* bstring = (char*)b->value;
+  const size_t total_len = 1 + strlen(astring) + strlen(bstring);
+  char* cstring = malloc(total_len * sizeof(char));
+  if (NULL == cstring) {
+    exit(ENOMEM);
+  }
+  snprintf(cstring, total_len, "%s%s", astring, bstring);
+  return make_value(STRING, (union Primitive*)cstring);
+}
+
 /* I/O */
 
 struct Value* read_file(const struct Value* name, const struct Value* m) {

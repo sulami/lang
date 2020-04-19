@@ -43,6 +43,11 @@
 (defun dec (x)
   (- x 1))
 
+;; Strings
+
+(defun concat (x y)
+  (concat_strings x y))
+
 ;; Lists
 
 (defun cadr (x)
@@ -52,7 +57,8 @@
   (let ((reverse* (lambda (from to)
                     (if (nil? from)
                         to
-                        (recur (cdr from) (cons (car from) to))))))
+                        (recur (cdr from)
+                               (cons (car from) to))))))
     (reverse* l nil)))
 
 (defun count (l)
@@ -72,19 +78,31 @@
       (car l)
       (recur (cdr l) (dec i))))
 
-(defun take (l n)
-  (let ((take* (lambda (l n acc)
-                 (if (nil? l)
-                     acc
-                     (recur (cdr l)
-                            (dec n)
-                            (cons (car l) acc))))))
-    (reverse (take* l n nil))))
+(defun take (n l)
+  (let ((take* (lambda (n from to)
+                 (if (nil? from)
+                     to
+                     (recur (dec n)
+                            (cdr from)
+                            (cons (car from) to))))))
+    (reverse (take* n l nil))))
 
-(defun drop (l n)
+(defun drop (n l)
   (if (= 0 n)
       l
-      (recur (cdr l) (dec n))))
+      (recur (dec n) (cdr l))))
+
+(defun filter (f l)
+  (let ((filter* (lambda (f from to)
+                   (if (nil? from)
+                       to
+                       (let ((this (car from)))
+                         (recur f
+                                (cdr from)
+                                (if (f this)
+                                    (cons this to)
+                                    to)))))))
+    (reverse (filter* f l nil))))
 
 (defun map (f l)
   (let ((map* (lambda (f from to)
@@ -98,12 +116,12 @@
 (defun reduce (f l)
   (let ((first-result (f (car l) (car (cdr l))))
         (remaining-list (cdr (cdr l)))
-        (reduce* (lambda (f l acc)
-                   (if (nil? l)
-                       acc
+        (reduce* (lambda (f from to)
+                   (if (nil? from)
+                       to
                        (recur f
-                              (cdr l)
-                              (f acc (car l)))))))
+                              (cdr from)
+                              (f to (car from)))))))
     (reduce* f remaining-list first-result)))
 
 ;; The actual compiler.
@@ -115,8 +133,9 @@
     (println "...")
     (let ((source-code (slurp source-file))
           (target-file "output"))
-      (println source-code)
-      (spit target-file source-code)
+      ;; (println (concat "this is " "a string"))
+      ;; (println source-code)
+      ;; (spit target-file source-code)
       (println "Done!"))))
 
 (compile argv)
