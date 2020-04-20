@@ -40,9 +40,9 @@ RUNTIME_TYPES = {
     'int': 2,
     'float': 3,
     'char': 4,
-    'string': 100,
-    'cons': 101,
-    'function': 102,
+    'string': 128,
+    'cons': 129,
+    'function': 130,
 }
 
 # Values

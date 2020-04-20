@@ -31,9 +31,9 @@ int nebula_main(int argc, char** argv) {
 
 /* Values (the runtime understanding) */
 
-// Primitive values are <100, pointers >=100.
+// Primitive values are <128, pointers >=128.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4,
-           STRING = 100, CONS = 101, FUNCTION = 102};
+           STRING = 128, CONS = 129, FUNCTION = 130};
 // FIXME Strings are cast, but struct pointers aren't.
 union Primitive {
   bool b;
@@ -73,9 +73,9 @@ struct Value* make_value(enum Type type, union Primitive* value) {
   // things on the stack only, so we'd lose our boxed value when
   // returning from a function. Nil is a special case, as value is
   // empty, and (usually) a null pointer, so we can skip this step.
-  // Non-primitive values (type >= 100) can also safely be assigned
+  // Non-primitive values (type >= 128) can also safely be assigned
   // over, as they're only pointers anyway.
-  if ((NIL != type) && (type < 100)) {
+  if ((NIL != type) && (type & (1 << 7))) {
     union Primitive* val = malloc(sizeof(union Primitive));
     if (NULL == val) {
       exit(ENOMEM);
