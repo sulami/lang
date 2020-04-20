@@ -56,17 +56,6 @@
 (defun dec (x)
   (- x 1))
 
-;; Strings
-
-(defun concat (x y)
-  (concat_strings x y))
-
-(defun str->cons (s)
-  (string_to_cons s))
-
-(defun cons->str (l)
-  (cons_to_string l))
-
 ;; Lists
 
 (defun cadr (x)
@@ -122,6 +111,12 @@
                                   (cons (car from) to))))))
     (reverse (take-while* f l nil))))
 
+(defun drop-while (f l)
+  (if (or (nil? l)
+          (not (f (car l))))
+      l
+      (recur f (cdr l))))
+
 (defun filter (f l)
   (let ((filter* (lambda (f from to)
                    (if (nil? from)
@@ -153,6 +148,17 @@
                               (cdr from)
                               (f to (car from)))))))
     (reduce* f remaining-list first-result)))
+
+;; Strings
+
+(defun concat (x y)
+  (concat_strings x y))
+
+(defun str->cons (s)
+  (string_to_cons s))
+
+(defun cons->str (l)
+  (cons_to_string l))
 
 ;; The actual compiler.
 
