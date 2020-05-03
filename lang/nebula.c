@@ -39,9 +39,7 @@ union Primitive {
   bool b;
   int i;
   float f;
-  char* string;
-  struct Cons* cons;
-  struct Function* func;
+  void* ptr;
 };
 
 struct Value {
@@ -111,7 +109,7 @@ struct Value* make_function(char* name, void* fn_ptr) {
   /* printf("making function - fn name: %s; fn ptr: %X; struct ptr: %X\n", f->name, f->fn_ptr, f); */
 
   union Primitive* u = calloc(1, sizeof(union Primitive));
-  u->func = f;
+  u->ptr = f;
   return make_value(FUNCTION, u);
 }
 
@@ -144,7 +142,7 @@ struct Value* value_equal(struct Value* a, struct Value* b) {
       result = (value_equal(car(a), car(b)) && value_equal(cdr(a), cdr(b)));
       break;
     case FUNCTION:
-      result = (a->value->func->name == b->value->func->name);
+      result = (((struct Function*)a->value->ptr)->name == ((struct Function*)b->value->ptr)->name);
       break;
     default:
       result = false;
@@ -178,7 +176,7 @@ bool value_truthy(struct Value* value) {
     return 0 < strlen((char *)value->value);
     break;
   case CONS:
-    return NIL != value->value->cons;
+    return NIL != value->value->ptr;
     break;
   case FUNCTION:
     return true;
@@ -228,7 +226,7 @@ void print_value(struct Value* value) {
     printf(")");
     break;
   case FUNCTION:
-    printf("<function: %s>", value->value->func->name);
+    printf("<function: %s>", ((struct Function*)value->value->ptr)->name);
     break;
   }
 }
@@ -265,7 +263,7 @@ struct Value* cons_to_string(const struct Value* l) {
   // Walk once to get the length.
   while (NIL != head->value) {
     ++len;
-    head = head->value->cons->cdr;
+    head = ((struct Cons*)head->value->ptr)->cdr;
   }
   char* str = malloc((1 + len) * sizeof(char));
   if (NULL == str) {
@@ -274,9 +272,9 @@ struct Value* cons_to_string(const struct Value* l) {
   head = l;
   // Walk again to fill the string.
   for (size_t pos = 0; pos < len; ++pos) {
-    *(str+pos) = (char)head->value->cons->car->value->i;
+    *(str+pos) = (char)((struct Cons*)head->value->ptr)->car->value->i;
     /* sprintf((char*), str + pos); */
-    head = head->value->cons->cdr;
+    head = ((struct Cons*)head->value->ptr)->cdr;
   }
   return make_value(STRING, (union Primitive*)str);
 }
@@ -335,7 +333,7 @@ struct Value* cons(struct Value* head, struct Value* tail) {
   new_cons->cdr = tail;
 
   union Primitive* u = calloc(1, sizeof(union Primitive));
-  u->cons = new_cons;
+  u->ptr = new_cons;
   return make_value(CONS, u);
 }
 
@@ -344,7 +342,7 @@ struct Value* car(struct Value* c) {
   if (NULL == value) {
     return make_value(NIL, NULL);
   }
-  struct Cons* co = value->cons;
+  struct Cons* co = value->ptr;
   if (NULL == co) {
     return make_value(NIL, NULL);
   }
@@ -356,7 +354,7 @@ struct Value* cdr(struct Value* c) {
   if (NULL == value) {
     return make_value(NIL, NULL);
   }
-  struct Cons* co = value->cons;
+  struct Cons* co = value->ptr;
   if (NULL == co) {
     return make_value(NIL, NULL);
   }
