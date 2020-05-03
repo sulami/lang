@@ -56,6 +56,15 @@
 (defun dec (x)
   (- x 1))
 
+(defun zero? (x)
+  (= 0 x))
+
+(defun pos? (x)
+  (< 0 x))
+
+(defun neg? (x)
+  (< x 0))
+
 ;; Lists
 
 (defun cadr (x)
@@ -82,7 +91,8 @@
       (recur (cdr l))))
 
 (defun nth (l i)
-  (if (= 0 i)
+  (if (or (= 0 i)
+          (nil? l))
       (car l)
       (recur (cdr l) (dec i))))
 
@@ -169,17 +179,119 @@
 
 ;; The actual compiler.
 
+(defun parse (unparsed ast in-word?)
+  (let ((c (car unparsed))
+        (current-word (car ast))
+        (rest (cdr ast)))
+
+    (if (nil? c)
+        ;; We're done parsing.
+        (cons unparsed
+              (cons (reverse ast)
+                             nil))
+
+        (if (whitespace? c)
+            ;; Word ended, finalise last word.
+            (recur (drop-while (lambda (c) (whitespace? c)) unparsed)
+                   (cons (if (= (type \c)
+                                (type (car current-word)))
+                             (cons->str (reverse current-word))
+                             (reverse current-word))
+                         rest)
+                   false)
+
+            (if (= \( c)
+                ;; Inner sexp, call down one level.
+                (let ((inner (parse (cdr unparsed)
+                                    nil
+                                    false)))
+                  (let ((inner-unparsed (car inner))
+                        (inner-ast (cadr inner)))
+                    (recur inner-unparsed
+                           (cons (cons inner-ast nil)
+                                 ast)
+                           false)))
+
+                (if (= \) c)
+                    ;; Done in this sexp, return up one level.
+                    (let ((final-ast
+                           (cons (reverse (cons (cons->str (reverse current-word))
+                                                rest))
+                                 nil)))
+                      (cons (cdr unparsed)
+                            final-ast))
+
+                    (if in-word?
+                        ;; Already in a word, append to current word.
+                        (recur (cdr unparsed)
+                               (cons (cons c current-word)
+                                     rest)
+                               true)
+
+                        ;; Otherwise start a new word.
+                        (recur (cdr unparsed)
+                               (cons (cons c nil)
+                                     ast)
+                               true))))))))
+
 (defun compile (args)
-  (let ((source-file (cadr args)))
+  (let ((source-file (nth args 1)))
     (print "Compiling ")
     (print source-file)
     (println "...")
-    (let ((source-code (slurp source-file))
-          (target-file "output"))
-      (println (cons->str (str->cons source-code)))
-      ;; (println (concat "this is " "a string"))
-      ;; (println source-code)
-      ;; (spit target-file source-code)
-      (println "Done!"))))
+    (let ((source-code (str->cons (slurp source-file))))
+      (println (cadr (parse source-code nil false))))))
 
 (compile argv)
+
+;; (defun parse (state)
+;;   (let ((c (car (aget state "unparsed"))))
+;;     (if (nil? c)
+;;         state
+;;         (if (= \( c)
+;;             (let ((inner-state (parse state)))
+;;               (recur
+;;                (alist "ast" (lambda (x) ) inner-state)))
+;;             (if (= \) c)
+;;                 4
+;;                 (if (whitespace? c)
+;;                     5
+;;                     (if (aget state "inside-word?")
+;;                         6
+;;                         7)))))))
+
+;; -(defn parse [state]
+;; -  (if-let [c (first (:unparsed state))]
+;; -    (cond
+;; -      (= \( c)
+;; -      (let [inner-state (parse (-> state
+;; -                                   (update :depth inc)
+;; -                                   (update :unparsed rest)
+;; -                                   (assoc :ast [])))]
+;; -        (recur
+;; -         (update inner-state :ast #(conj (:ast state) %))))
+;; -
+;; -      (= \) c)
+;; -      (-> state
+;; -          (update :depth dec)
+;; -          (assoc :inside-word? false)
+;; -          (update :unparsed rest))
+;; -
+;; -      (Character/isWhitespace c)
+;; -      (recur
+;; -       (-> state
+;; -           (assoc :inside-word? false)
+;; -           (update :unparsed rest)))
+;; -
+;; -      :else
+;; -      (recur
+;; -       (if (:inside-word? state)
+;; -         (-> state
+;; -             (update-in [:ast (-> state :ast count dec)] str c)
+;; -             (update :unparsed rest))
+;; -         (-> state
+;; -             (update :ast #(conj % (str c)))
+;; -             (assoc :inside-word? true)
+;; -             (update :unparsed rest)))))
+;; -
+;; -    state))
