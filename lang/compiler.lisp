@@ -149,6 +149,13 @@
                               (f to (car from)))))))
     (reduce* f remaining-list first-result)))
 
+;; Chars
+
+(defun whitespace? (c)
+  (or (= c \space)
+      (or (= c \tab)
+          (= c \newline))))
+
 ;; Strings
 
 (defun concat (x y)

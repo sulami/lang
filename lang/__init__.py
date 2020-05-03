@@ -469,6 +469,7 @@ def compile_constant_char(env, expression):
         char_mapping = {
             'newline': '\n',
             'space': ' ',
+            'tab': '\t',
         }
         val = ir.Constant(T_I32, ord(char_mapping[expression[1:]]))
     vptr = store_value(env, val)
@@ -498,7 +499,7 @@ def compile_expression(env, expression, depth=0):
     elif '"' == expression[0]:
         # constant string
         return compile_constant_string(env, expression)
-    elif re.match('^\\\\(\w|space|newline)$', expression):
+    elif re.match('^\\\\(\w|space|newline|tab)$', expression):
         # char (NOTE: this regex above matches "\c")
         return compile_constant_char(env, expression)
     elif re.match('^-?[0-9]+\.[0-9]+$',  expression):
