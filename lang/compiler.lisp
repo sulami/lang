@@ -203,49 +203,57 @@
               (cons (reverse ast)
                              nil))
 
-        (if (whitespace? c)
-            ;; Word ended, finalise last word.
-            (recur (drop-while (lambda (c) (whitespace? c)) unparsed)
-                   (cons (if (= (type \c)
-                                (type (car current-word)))
-                             (cons->str (reverse current-word))
-                             (reverse current-word))
-                         rest)
+        (if (= \; c)
+            ;; A comment, skip until the newline.
+            (recur (drop-while (lambda (x) (not= \newline x))
+                               unparsed)
+                   ast
                    false)
 
-            (if (= \( c)
-                ;; Inner sexp, call down one level.
-                (let ((inner (parse (cdr unparsed)
-                                    nil
-                                    false)))
-                  (let ((inner-unparsed (car inner))
-                        (inner-ast (cadr inner)))
-                    (recur inner-unparsed
-                           (cons (cons inner-ast nil)
-                                 ast)
-                           false)))
+            (if (whitespace? c)
+                ;; Word ended, finalise last word.
+                (recur (drop-while (lambda (x) (whitespace? x))
+                                   unparsed)
+                       (cons (if (= (type \c)
+                                    (type (car current-word)))
+                                 (cons->str (reverse current-word))
+                                 (reverse current-word))
+                             rest)
+                       false)
 
-                (if (= \) c)
-                    ;; Done in this sexp, return up one level.
-                    (let ((final-ast
-                           (cons (reverse (cons (cons->str (reverse current-word))
-                                                rest))
-                                 nil)))
-                      (cons (cdr unparsed)
-                            final-ast))
-
-                    (if in-word?
-                        ;; Already in a word, append to current word.
-                        (recur (cdr unparsed)
-                               (cons (cons c current-word)
-                                     rest)
-                               true)
-
-                        ;; Otherwise start a new word.
-                        (recur (cdr unparsed)
-                               (cons (cons c nil)
+                (if (= \( c)
+                    ;; Inner sexp, call down one level.
+                    (let ((inner (parse (cdr unparsed)
+                                        nil
+                                        false)))
+                      (let ((inner-unparsed (car inner))
+                            (inner-ast (cadr inner)))
+                        (recur inner-unparsed
+                               (cons (cons inner-ast nil)
                                      ast)
-                               true))))))))
+                               false)))
+
+                    (if (= \) c)
+                        ;; Done in this sexp, return up one level.
+                        (let ((final-ast
+                               (cons (reverse (cons (cons->str (reverse current-word))
+                                                    rest))
+                                     nil)))
+                          (cons (cdr unparsed)
+                                final-ast))
+
+                        (if in-word?
+                            ;; Already in a word, append to current word.
+                            (recur (cdr unparsed)
+                                   (cons (cons c current-word)
+                                         rest)
+                                   true)
+
+                            ;; Otherwise start a new word.
+                            (recur (cdr unparsed)
+                                   (cons (cons c nil)
+                                         ast)
+                                   true)))))))))
 
 (defun compile (args)
   (let ((source-file (nth args 1)))
