@@ -5,7 +5,7 @@
   (print_value i)
   (print_value "\n")
   (if (< i 10)
-      (count (+ 1 i))
+      (recur (+ i 1))
       i))
 
 (print_value (count 0))

@@ -283,6 +283,7 @@ def compile_native_op(env, expression, depth=0):
         result = env.builder.sdiv(lhs, rhs)
     if a in ['<', '<=', '==', '!=', '>=', '>']:
         result = env.builder.icmp_signed(a, lhs, rhs)
+        return env.call('make_value', [T_I32(RUNTIME_TYPES['bool']), store_value(env, result)])
     return env.call('make_value', [T_I32(RUNTIME_TYPES['int']), store_value(env, result)])
 
 def compile_box(env, expression, depth=0):
