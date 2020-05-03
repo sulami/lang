@@ -470,6 +470,9 @@ def compile_constant_char(env, expression):
             'newline': '\n',
             'space': ' ',
             'tab': '\t',
+            '(': '(',
+            ')': ')',
+            '"': '"',
         }
         val = ir.Constant(T_I32, ord(char_mapping[expression[1:]]))
     vptr = store_value(env, val)
@@ -499,7 +502,7 @@ def compile_expression(env, expression, depth=0):
     elif '"' == expression[0]:
         # constant string
         return compile_constant_string(env, expression)
-    elif re.match('^\\\\(\w|space|newline|tab)$', expression):
+    elif re.match('^\\\\(\w|space|newline|tab|\(|\)|")$', expression):
         # char (NOTE: this regex above matches "\c")
         return compile_constant_char(env, expression)
     elif re.match('^-?[0-9]+\.[0-9]+$',  expression):
@@ -620,8 +623,17 @@ def parse(unparsed, depth=0):
         if inside_comment:
             if '\n' == c:
                 inside_comment = False
+        elif '\\' == c and not inside_string:
+            for literal in ['space', 'tab', 'newline']:
+                # Some literals are multiple chars
+                if unparsed.startswith(literal):
+                    ast += [c + unparsed[:len(literal)]]
+                    unparsed = unparsed[len(literal):]
+                    break
             else:
-                continue
+                # Else just take a char and call it done
+                ast += [c + unparsed[0]]
+                unparsed = unparsed[1:]
         elif ';' == c:
             inside_comment = True
         elif '"' == c:
@@ -648,6 +660,9 @@ def parse(unparsed, depth=0):
             ast += c
     if depth != 0:
         raise Exception('Unexpected EOF while parsing')
+    if DEBUG:
+        from pprint import pprint
+        pprint(ast)
     return unparsed, ast
 
 def main():
