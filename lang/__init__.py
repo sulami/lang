@@ -160,16 +160,14 @@ class Environment:
         debug('args', [getattr(a, 'type', 'No type') for a in args])
 
         unboxed_args = []
-        if name.startswith(''):
-            # external call, unbox
-            for i in range(len(args)):
-                arg = args[i]
-                fn_arg = fn.args[i] if i < len(fn.args) else None
-                fn_arg_type = getattr(arg, 'type', None)
-                if T_VALUE_STRUCT_PTR == fn_arg_type and arg.type != fn_arg_type:
-                    arg = self.unbox_value(arg, fn_arg_type)
-                unboxed_args.append(arg)
-            args = unboxed_args
+        for i in range(len(args)):
+            arg = args[i]
+            fn_arg = fn.args[i] if i < len(fn.args) else None
+            fn_arg_type = getattr(arg, 'type', None)
+            if T_VALUE_STRUCT_PTR == fn_arg_type and arg.type != fn_arg_type:
+                arg = self.unbox_value(arg, fn_arg_type)
+            unboxed_args.append(arg)
+        args = unboxed_args
 
         debug('args afterwards', [getattr(a, 'type', 'no type') for a in args])
         fn_retval = self.builder.call(fn, args, tail=tail)

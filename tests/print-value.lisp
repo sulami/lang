@@ -11,3 +11,6 @@
 
 (print_value "foo")
 (print_value "\n")
+
+(print_value "looooooong string")
+(print_value "\n")
