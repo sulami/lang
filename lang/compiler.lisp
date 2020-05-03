@@ -177,6 +177,19 @@
 (defun cons->str (l)
   (cons_to_string l))
 
+;; Types
+;; There's currently no notation for types, so we just derive them.
+
+(def NIL (type nil))
+(def BOOL (type true))
+(def INT (type 42))
+(def FLOAT (type 3.14159))
+(def CHAR (type \a))
+(def TYPE (type (type nil)))
+(def STRING (type "foo"))
+(def CONS (type (cons 1 nil)))
+(def FUNCTION (type (lambda (x) x)))
+
 ;; The actual compiler.
 
 (defun parse (unparsed ast in-word?)

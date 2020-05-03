@@ -32,7 +32,7 @@ int nebula_main(int argc, char** argv) {
 /* Values (the runtime understanding) */
 
 // Primitive values are <128, pointers >=128.
-enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4,
+enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4, TYPE = 5,
            STRING = 128, CONS = 129, FUNCTION = 130};
 // FIXME Strings are cast, but struct pointers aren't.
 union Primitive {
@@ -133,6 +133,9 @@ struct Value* value_equal(struct Value* a, struct Value* b) {
     case CHAR:
       result = (a->value->i == b->value->i);
       break;
+    case TYPE:
+      result = (a->value->i == b->value->i);
+      break;
     case STRING:
       result = (0 == strcmp((char*)a->value, (char*)b->value));
       break;
@@ -170,6 +173,9 @@ bool value_truthy(struct Value* value) {
   case CHAR:
     return true;
     break;
+  case TYPE:
+    return true;
+    break;
   case STRING:
     return 0 < strlen((char *)value->value);
     break;
@@ -187,6 +193,12 @@ bool value_truthy(struct Value* value) {
 
 union Primitive* unbox_value(struct Value* value) {
   return value->value;
+}
+
+struct Value* type(struct Value* value) {
+  union Primitive* u = calloc(1, sizeof(union Primitive));
+  u->i = value->type;
+  return make_value(TYPE, u);
 }
 
 void print_value(struct Value* value) {
@@ -211,6 +223,40 @@ void print_value(struct Value* value) {
       printf("\\space");
     } else {
       printf("\\%c", value->value->i);
+    }
+    break;
+  case TYPE:
+    switch (value->value->i) {
+    case NIL:
+      printf("<type: nil>");
+      break;
+    case BOOL:
+      printf("<type: bool>");
+      break;
+    case INT:
+      printf("<type: int>");
+      break;
+    case FLOAT:
+      printf("<type: float>");
+      break;
+    case CHAR:
+      printf("<type: char>");
+      break;
+    case TYPE:
+      printf("<type: type>");
+      break;
+    case STRING:
+      printf("<type: string>");
+      break;
+    case CONS:
+      printf("<type: cons>");
+      break;
+    case FUNCTION:
+      printf("<type: function>");
+      break;
+    default:
+      printf("<type: unknown>");
+      break;
     }
     break;
   case STRING:

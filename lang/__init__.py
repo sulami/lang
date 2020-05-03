@@ -40,6 +40,7 @@ RUNTIME_TYPES = {
     'int': 2,
     'float': 3,
     'char': 4,
+    'type': 5,
     'string': 128,
     'cons': 129,
     'function': 130,
@@ -529,6 +530,7 @@ def compile_main(ast):
     env.declare_fn("nebula_main", T_I32, [T_I32, T_VOID_PTR.as_pointer()])
     env.declare_fn('make_value', T_VALUE_STRUCT_PTR, [T_I32, T_VOID_PTR])
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
+    env.declare_fn('type', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
     env.declare_fn("value_equal", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("value_truthy", T_BOOL, [T_VALUE_STRUCT_PTR])
