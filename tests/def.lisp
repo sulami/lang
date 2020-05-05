@@ -1,5 +1,9 @@
 ;; This tests that def bindings are working.
 
-(def x 42)
+(defun f (x)
+  (print_value x))
 
-(print_value x)
+(def v 42)
+
+(f v)
+(print_value "\n")

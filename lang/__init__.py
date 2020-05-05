@@ -119,6 +119,7 @@ class Environment:
         self.blocks = {
             fq_block_name(self.builder.function, block): block,
         }
+        self.global_scope = dict()
         self.scopes = [dict()]
 
     def add_fn(self, name, argc):
@@ -350,8 +351,17 @@ def compile_def(env, expression, depth=0):
     assert 3 == len(expression), 'def takes exactly two arguments'
     _, name, val = expression
     evaled_value = compile_expression(env, val, depth=depth+1)
-    env.scopes[-1][name] = evaled_value
-    return evaled_value
+    debug('evaled_value', evaled_value)
+    gv = ir.GlobalVariable(env.builder.module, T_VALUE_STRUCT_PTR, name)
+    # It can't be constant because we have to write to it, as we don't
+    # know the value at compile-time.
+    # gv.global_constant = True
+    # gv.initializer = evaled_value
+    gv.linkage = 'internal'
+    env.builder.store(evaled_value , gv)
+    env.global_scope[name] = gv
+    debug('gv', gv)
+    return gv
 
 def compile_recur(env, expression, depth=0):
     args = [compile_expression(env, arg) for arg in expression[1:]]
@@ -396,6 +406,7 @@ def compile_function_call(env, expression, depth=0):
         # Function is a function call? Eval it.
         fn_value = compile_expression(env, expression[0])
     elif expression[0] in env.lib:
+        print(args)
         # If it's a global function just jump there.
         return env.call(expression[0], args)
     elif compile_symbol(env, expression[0]):
@@ -487,6 +498,11 @@ def compile_symbol(env, expression):
         if expression in scope:
             return scope[expression]
     debug('Could not find symbol ' + expression + ' in local scope')
+    if expression in env.global_scope:
+        debug('Found symbol ' + expression + ' in global scope:')
+        debug(env.global_scope[expression])
+        return env.builder.load(env.global_scope[expression])
+    debug('Could not find symbol ' + expression + ' in global scope')
     return None
 
 def compile_expression(env, expression, depth=0):
