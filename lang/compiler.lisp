@@ -202,7 +202,7 @@
 
 ;; The actual compiler.
 
-(def *debug* true)
+(def *debug* false)
 
 (defun debugp (n x)
   (if *debug*

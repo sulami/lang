@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 
+#include <llvm-c/Core.h>
+
 int usercode_main(int, char**);
 struct Value* cons(struct Value*, struct Value*);
 struct Value* cdr(struct Value*);

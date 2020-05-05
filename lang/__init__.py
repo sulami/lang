@@ -196,6 +196,7 @@ def compile_nebula():
                     "-fpic",
                     "-c",
                     "-O3" if OPTIMISE else "-O0",
+                    "-I.",
                     "-o", "nebula.o",
                     "lang/nebula.c"],
                    check=True)
