@@ -202,40 +202,38 @@
 
 ;; The actual compiler.
 
-(def *debug* false)
+(def *debug* true)
 
-(defun debugp (x)
+(defun debugp (n x)
   (if *debug*
-      (println x)
+      (progn
+        (print "[DEBUG] ")
+        (print (concat n ": "))
+        (println x))
       nil))
 
-(defun parse (unparsed ast in-word?)
+(defun parse (unparsed ast)
   (let ((c (car unparsed))
         (current-word (car ast))
         (rest (cdr ast)))
 
-    (debugp c)
+    (debugp "reading" c)
     (if (nil? c)
         ;; We're done parsing.
         (cons unparsed
               (cons (reverse ast)
-                             nil))
+                    nil))
 
         (if (= \; c)
             ;; A comment, skip until the newline.
             (recur (drop-while (lambda (x) (not= \newline x))
                                unparsed)
-                   ast
-                   false)
+                   ast)
 
             (if (whitespace? c)
-                ;; Word ended, finalise last word.
+                ;; Just skip ahead.
                 (recur (drop-while whitespace? unparsed)
-                       (cons (if (cons? current-word)
-                                 (cons->str (reverse current-word))
-                                 current-word)
-                             rest)
-                       false)
+                       ast)
 
                 (if (= \( c)
                     ;; Inner sexp, call down one level.
@@ -244,32 +242,29 @@
                                         false)))
                       (let ((inner-unparsed (car inner))
                             (inner-ast (cadr inner)))
+                        (debugp "inner ast" inner-ast)
                         (recur inner-unparsed
-                               (cons (cons inner-ast nil)
-                                     ast)
-                               false)))
+                               (cons inner-ast
+                                     ast))))
 
                     (if (= \) c)
                         ;; Done in this sexp, return up one level.
-                        (let ((final-ast
-                               (cons (reverse (cons (cons->str (reverse current-word))
-                                                    rest))
-                                     nil)))
-                          (cons (cdr unparsed)
-                                final-ast))
+                        (cons (cdr unparsed)
+                              (cons (reverse ast) nil))
 
-                        (if in-word?
-                            ;; Already in a word, append to current word.
-                            (recur (cdr unparsed)
-                                   (cons (cons c current-word)
-                                         rest)
-                                   true)
-
-                            ;; Otherwise start a new word.
-                            (recur (cdr unparsed)
-                                   (cons (cons c nil)
-                                         ast)
-                                   true)))))))))
+                        ;; Default case: take a word
+                        (let ((take-word (lambda (x)
+                                           (if (nil? x)
+                                               false
+                                               (and (not (whitespace? x))
+                                                    (and (not= \( x)
+                                                         (and (not= \) x)
+                                                              (not= \; x))))))))
+                          (debugp "ast" ast)
+                          (debugp "the word" (cons->str (take-while take-word unparsed)))
+                          (recur (drop-while take-word unparsed)
+                                 (cons (cons->str (take-while take-word unparsed))
+                                       ast))))))))))
 
 (defun compile (args)
   (let ((source-file (nth args 1)))
@@ -277,7 +272,7 @@
     (print source-file)
     (println "...")
     (let ((source-code (str->cons (slurp source-file))))
-      (println (cadr (parse source-code nil false))))))
+      (println (cadr (parse source-code nil))))))
 
 (compile argv)
 

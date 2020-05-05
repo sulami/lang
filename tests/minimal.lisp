@@ -1,5 +1,5 @@
-these are atoms
+;; these are atoms
 
 ;; (simple sexp)
 
-;; (this (is an) sexp)
+(this (is (a) complicated) sexp)
