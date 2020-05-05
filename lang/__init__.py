@@ -189,38 +189,10 @@ class Environment:
                 )
         return fn_retval
 
-def compile_nebula():
-    # TODO don't recompile if it's current
-    subprocess.run(["cc",
-                    "-Wall",
-                    "-fpic",
-                    "-c",
-                    "-O3" if OPTIMISE else "-O0",
-                    "-I.",
-                    "-o", "nebula.o",
-                    "lang/nebula.c"],
-                   check=True)
-
 def compile_binary(module):
-    with tempfile.NamedTemporaryFile(mode='w', suffix=".ll") as tmp_llvm_ir:
-        with tempfile.NamedTemporaryFile(mode='wb', suffix=".o") as tmp_obj:
-            # Compile the object
-            tmp_llvm_ir.write(str(module))
-            tmp_llvm_ir.flush()
-            subprocess.run(["/usr/local/opt/llvm/bin/llc",
-                            "--filetype=obj",
-                            "-o=" + tmp_obj.name,
-                            "-O3" if OPTIMISE else "-O0",
-                            tmp_llvm_ir.name],
-                           check=True)
-            # Link & compile the binary
-            subprocess.run(["cc",
-                            "-Wall",
-                            "-o", "out",
-                            "-O3" if OPTIMISE else "-O0",
-                            tmp_obj.name,
-                            "nebula.o",],
-                           check=True)
+    with open('out.ll', 'w') as llvm_ir:
+        llvm_ir.write(str(module))
+        llvm_ir.flush()
 
 def compile_if(env, expression, depth=0):
     assert 4 == len(expression), 'if takes exactly 3 arguments'
@@ -684,7 +656,6 @@ def parse(unparsed, depth=0):
 
 def main():
     init_llvm()
-    compile_nebula()
     engine = compile_execution_engine()
     ast = None
     with open(sys.argv[1], 'r') as fp:

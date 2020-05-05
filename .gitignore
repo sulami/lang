@@ -1,5 +1,6 @@
 *.pyc
 *.o
 *.so
+*.ll
 out
 lang.egg-info
