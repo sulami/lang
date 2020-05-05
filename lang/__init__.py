@@ -147,12 +147,14 @@ class Environment:
             name=name
         )
 
-    def unbox_value(self, val, out_type):
+    def unbox_value(self, val, out_type=T_I8, load=True):
         debug('out_type', out_type)
         val = self.builder.call(self.lib['unbox_value'], [val])
-        out_type = out_type or T_I32
-        val_int = self.builder.bitcast(val, out_type.as_pointer())
-        return self.builder.load(val_int)
+        if load:
+            val = self.builder.bitcast(val, out_type.as_pointer())
+            return self.builder.load(val)
+        val = self.builder.bitcast(val, out_type)
+        return val
 
     def call(self, name, args, tail=False):
         fn = self.lib[name]
@@ -165,9 +167,13 @@ class Environment:
         for i in range(len(args)):
             arg = args[i]
             fn_arg = fn.args[i] if i < len(fn.args) else None
-            fn_arg_type = getattr(arg, 'type', None)
-            if T_VALUE_STRUCT_PTR == fn_arg_type and arg.type != fn_arg_type:
-                arg = self.unbox_value(arg, fn_arg_type)
+            fn_arg_type = getattr(fn_arg, 'type', None)
+            if T_VALUE_STRUCT_PTR == arg.type and arg.type != fn_arg_type:
+                arg = self.unbox_value(
+                    arg,
+                    out_type=fn_arg_type,
+                    load=not name.startswith('LLVM') # HACK
+                )
             unboxed_args.append(arg)
         args = unboxed_args
 
@@ -188,11 +194,6 @@ class Environment:
                     [T_I32(RUNTIME_TYPES['int']), store_value(self, fn_retval)]
                 )
         return fn_retval
-
-def compile_binary(module):
-    with open('out.ll', 'w') as llvm_ir:
-        llvm_ir.write(str(module))
-        llvm_ir.flush()
 
 def compile_if(env, expression, depth=0):
     assert 4 == len(expression), 'if takes exactly 3 arguments'
@@ -529,12 +530,15 @@ def compile_main(ast):
     env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("write_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
-    env.declare_fn("debug", T_VOID, [T_VOID_PTR])
+    env.declare_fn("nebula_debug", T_VOID, [T_VOID_PTR])
     env.declare_fn("cons", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("car", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn("cdr", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
     env.declare_fn("alist", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
     env.declare_fn("aget", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
+
+    # Declare LLVM
+    env.declare_fn('LLVMModuleCreateWithName', T_VOID_PTR, [T_VOID_PTR])
 
     # Dispatch to runtime main function
     argc, argv = main_fn.args
@@ -665,7 +669,9 @@ def main():
     debug(main_mod)
     main_mod = compile_ir(engine, str(main_mod))
     # debug(main_mod)
-    compile_binary(main_mod)
+    with open('out.ll', 'w') as llvm_ir:
+        llvm_ir.write(str(main_mod))
+        llvm_ir.flush()
     print('Compiled successfully!')
 
 if __name__ == '__main__':

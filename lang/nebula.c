@@ -15,8 +15,8 @@ struct Value* car(struct Value*);
 /* Runtime */
 
 void init_nebula() {
-  puts("Nebula initalised.");
   srand(time(NULL));
+  puts("Nebula initalised.");
 }
 
 /* This is the runtime main function. It will init the runtime and
@@ -36,7 +36,6 @@ int nebula_main(int argc, char** argv) {
 // Primitive values are <128, pointers >=128.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4, TYPE = 5,
            STRING = 128, CONS = 129, FUNCTION = 130};
-// FIXME Strings are cast, but struct pointers aren't.
 union Primitive {
   bool b;
   int i;
@@ -439,6 +438,6 @@ struct Value* random_bool() {
   return make_value(BOOL, u);
 }
 
-void debug(void* x) {
+void nebula_debug(void* x) {
   printf("DEBUG: base 10: %u; base 16: %X\n", (unsigned int)x, (unsigned int)x);
 }

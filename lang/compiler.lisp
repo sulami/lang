@@ -267,6 +267,7 @@
                                        ast))))))))))
 
 (defun compile (args)
+  (println (make_value 2 (LLVMModuleCreateWithName "foo")))
   (let ((source-file (nth args 1)))
     (print "Compiling ")
     (print source-file)
@@ -276,54 +277,3 @@
 
 (compile argv)
 
-;; (defun parse (state)
-;;   (let ((c (car (aget state "unparsed"))))
-;;     (if (nil? c)
-;;         state
-;;         (if (= \( c)
-;;             (let ((inner-state (parse state)))
-;;               (recur
-;;                (alist "ast" (lambda (x) ) inner-state)))
-;;             (if (= \) c)
-;;                 4
-;;                 (if (whitespace? c)
-;;                     5
-;;                     (if (aget state "inside-word?")
-;;                         6
-;;                         7)))))))
-
-;; -(defn parse [state]
-;; -  (if-let [c (first (:unparsed state))]
-;; -    (cond
-;; -      (= \( c)
-;; -      (let [inner-state (parse (-> state
-;; -                                   (update :depth inc)
-;; -                                   (update :unparsed rest)
-;; -                                   (assoc :ast [])))]
-;; -        (recur
-;; -         (update inner-state :ast #(conj (:ast state) %))))
-;; -
-;; -      (= \) c)
-;; -      (-> state
-;; -          (update :depth dec)
-;; -          (assoc :inside-word? false)
-;; -          (update :unparsed rest))
-;; -
-;; -      (Character/isWhitespace c)
-;; -      (recur
-;; -       (-> state
-;; -           (assoc :inside-word? false)
-;; -           (update :unparsed rest)))
-;; -
-;; -      :else
-;; -      (recur
-;; -       (if (:inside-word? state)
-;; -         (-> state
-;; -             (update-in [:ast (-> state :ast count dec)] str c)
-;; -             (update :unparsed rest))
-;; -         (-> state
-;; -             (update :ast #(conj % (str c)))
-;; -             (assoc :inside-word? true)
-;; -             (update :unparsed rest)))))
-;; -
-;; -    state))
