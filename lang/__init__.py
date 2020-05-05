@@ -316,8 +316,9 @@ def compile_let(env, expression, depth=0):
 
 def compile_lambda(env, expression, name=None, depth=0):
     assert 3 <= len(expression), 'lambda takes at least 3 arguments'
-    fn_name = name or 'fn_{}'.format(''.join(random.choice(string.ascii_lowercase)
-                                             for _ in range(6)))
+    fn_name = name or '{}'.format(''.join(random.choice(string.ascii_lowercase)
+                                          for _ in range(6)))
+    fn_name = 'fn_' + fn_name
     previous_block = env.current_block_name()
     args = expression[1]
     fn = env.add_fn(fn_name, len(args))
@@ -340,8 +341,11 @@ def compile_lambda(env, expression, name=None, depth=0):
 def compile_defun(env, expression, depth=0):
     assert 4 <= len(expression), 'defun takes at least 3 arguments'
     fn_name = expression.pop(1)
+    gv = ir.GlobalVariable(env.builder.module, T_VALUE_STRUCT_PTR, fn_name)
+    gv.linkage = 'internal'
+    env.global_scope[fn_name] = gv
     fn = compile_lambda(env, expression, name=fn_name, depth=depth+1)
-    env.scopes[-1][fn_name] = fn
+    env.builder.store(fn , gv)
     return fn
 
 def compile_def(env, expression, depth=0):

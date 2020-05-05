@@ -190,13 +190,31 @@
 (def CONS (type (cons 1 nil)))
 (def FUNCTION (type (lambda (x) x)))
 
+;; nil? is defined in terms of its value above.
+(defun bool? (x) (= BOOL (type x)))
+(defun int? (x) (= INT (type x)))
+(defun float? (x) (= FLOAT (type x)))
+(defun char? (x) (= CHAR (type x)))
+(defun type? (x) (= TYPE (type x)))
+(defun string? (x) (= STRING (type x)))
+(defun cons? (x) (= CONS (type x)))
+(defun function? (x) (= FUNCTION (type x)))
+
 ;; The actual compiler.
+
+(def *debug* false)
+
+(defun debugp (x)
+  (if *debug*
+      (println x)
+      nil))
 
 (defun parse (unparsed ast in-word?)
   (let ((c (car unparsed))
         (current-word (car ast))
         (rest (cdr ast)))
 
+    (debugp c)
     (if (nil? c)
         ;; We're done parsing.
         (cons unparsed
@@ -212,12 +230,10 @@
 
             (if (whitespace? c)
                 ;; Word ended, finalise last word.
-                (recur (drop-while (lambda (x) (whitespace? x))
-                                   unparsed)
-                       (cons (if (= (type \c)
-                                    (type (car current-word)))
+                (recur (drop-while whitespace? unparsed)
+                       (cons (if (cons? current-word)
                                  (cons->str (reverse current-word))
-                                 (reverse current-word))
+                                 current-word)
                              rest)
                        false)
 
