@@ -1,11 +1,11 @@
 ;; This tests that association lists work.
 
-(def alist (alist 42 "foo" nil))
+(def a-list (alist 42 "foo" nil))
 
-(print_value alist)
+(print_value a-list)
 (print_value "\n")
 
-(def longer-alist (alist "bar" "baz" alist))
+(def longer-alist (alist "bar" "baz" a-list))
 (print_value longer-alist)
 (print_value "\n")
 
