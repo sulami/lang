@@ -439,5 +439,5 @@ struct Value* random_bool() {
 }
 
 void nebula_debug(void* x) {
-  printf("DEBUG: base 10: %u; base 16: %X\n", (unsigned int)x, (unsigned int)x);
+  printf("[DEBUG] base 10: %u; base 16: %X\n", (unsigned int)x, (unsigned int)x);
 }

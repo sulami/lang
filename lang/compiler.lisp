@@ -3,6 +3,30 @@
 ;; At the same time this is also the ultimate test, as it's the most
 ;; complex program written in this language.
 
+;; Declarations of external functions.
+
+;; libnebula
+(declare nebula_debug void (void_ptr))
+(declare type value (value))
+(declare value_equal value (value value))
+(declare print_value void (value))
+(declare value_truthy bool (value))
+(declare concat_strings value (value value))
+(declare string_to_cons value (value))
+(declare cons_to_string value (value))
+(declare read_file value (value value))
+(declare write_file value (value value value))
+(declare car value (value))
+(declare cdr value (value))
+(declare alist value (value value value))
+(declare aget value (value value))
+
+;; LLVM
+(declare LLVMModuleCreateWithName void_ptr (string))
+(declare LLVMAddFunction void_ptr (void_ptr string void_ptr))
+(declare LLVMFunctionType void_ptr (void_ptr void_ptr i32 i32))
+(declare LLVMInt32Type void_ptr ())
+
 ;; Convenience functions
 
 ;; I/O
@@ -266,8 +290,9 @@
                                  (cons (cons->str (take-while take-word unparsed))
                                        ast))))))))))
 
+(def main-module (LLVMModuleCreateWithName "foo"))
 (defun compile (args)
-  (println (make_value 2 (LLVMModuleCreateWithName "foo")))
+  (nebula_debug main-module)
   (let ((source-file (nth args 1)))
     (print "Compiling ")
     (print source-file)

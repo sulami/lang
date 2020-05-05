@@ -343,7 +343,26 @@ def compile_recur(env, expression, depth=0):
     current_fn_name = env.builder.function.name
     return env.call(current_fn_name, args, tail=True)
 
+def compile_declare(env, expression, depth=0):
+    _, name, return_type, arg_types = expression
+    type_mapping = {
+        'value': T_VALUE_STRUCT_PTR,
+        'void': T_VOID,
+        'void_ptr': T_VOID_PTR,
+        'bool': T_BOOL,
+        'i32': T_I32,
+        'string': T_VOID_PTR,
+    }
+    env.declare_fn(
+        name,
+        type_mapping[return_type],
+        [type_mapping[t] for t in arg_types]
+    )
+
 def compile_function_call(env, expression, depth=0):
+    if 'declare' == expression[0]:
+        return compile_declare(env, expression, depth=depth+1)
+
     if 'lambda' == expression[0]:
         return compile_lambda(env, expression, depth=depth+1)
 
@@ -515,30 +534,13 @@ def compile_main(ast):
     main_entry_block = main_fn.append_basic_block('entry')
     env = Environment(module, main_entry_block)
 
-    # Declare libnebula
+    # Declare libnebula. These are used in the compiler and have to be
+    # declared before usercode starts.
     env.declare_fn("nebula_main", T_I32, [T_I32, T_VOID_PTR.as_pointer()])
     env.declare_fn('make_value', T_VALUE_STRUCT_PTR, [T_I32, T_VOID_PTR])
     env.declare_fn('unbox_value', T_PRIMITIVE_PTR, [T_VALUE_STRUCT_PTR])
-    env.declare_fn('type', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
-    env.declare_fn('print_value', T_VOID, [T_VALUE_STRUCT_PTR])
-    env.declare_fn("value_equal", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-    env.declare_fn("value_truthy", T_BOOL, [T_VALUE_STRUCT_PTR])
     env.declare_fn('make_function', T_VALUE_STRUCT_PTR, [T_VOID_PTR, T_VOID_PTR])
-    env.declare_fn('concat_strings', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-    env.declare_fn('string_to_cons', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
-    env.declare_fn('cons_to_string', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
-    env.declare_fn("read_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-    env.declare_fn("write_file", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-    env.declare_fn("random_bool", T_VALUE_STRUCT_PTR, [])
-    env.declare_fn("nebula_debug", T_VOID, [T_VOID_PTR])
-    env.declare_fn("cons", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-    env.declare_fn("car", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
-    env.declare_fn("cdr", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR])
-    env.declare_fn("alist", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-    env.declare_fn("aget", T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
-
-    # Declare LLVM
-    env.declare_fn('LLVMModuleCreateWithName', T_VOID_PTR, [T_VOID_PTR])
+    env.declare_fn('cons', T_VALUE_STRUCT_PTR, [T_VALUE_STRUCT_PTR, T_VALUE_STRUCT_PTR])
 
     # Dispatch to runtime main function
     argc, argv = main_fn.args
