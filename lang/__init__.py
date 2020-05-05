@@ -190,7 +190,6 @@ class Environment:
         return fn_retval
 
 def compile_nebula():
-    print("Compiling nebula...")
     # TODO don't recompile if it's current
     subprocess.run(["cc",
                     "-Wall",
@@ -205,7 +204,6 @@ def compile_binary(module):
     with tempfile.NamedTemporaryFile(mode='w', suffix=".ll") as tmp_llvm_ir:
         with tempfile.NamedTemporaryFile(mode='wb', suffix=".o") as tmp_obj:
             # Compile the object
-            print("Compiling LLVM IR...")
             tmp_llvm_ir.write(str(module))
             tmp_llvm_ir.flush()
             subprocess.run(["/usr/local/opt/llvm/bin/llc",
@@ -215,7 +213,6 @@ def compile_binary(module):
                             tmp_llvm_ir.name],
                            check=True)
             # Link & compile the binary
-            print("Compiling binary...")
             subprocess.run(["cc",
                             "-Wall",
                             "-o", "out",
@@ -406,7 +403,6 @@ def compile_function_call(env, expression, depth=0):
         # Function is a function call? Eval it.
         fn_value = compile_expression(env, expression[0])
     elif expression[0] in env.lib:
-        print(args)
         # If it's a global function just jump there.
         return env.call(expression[0], args)
     elif compile_symbol(env, expression[0]):
@@ -532,7 +528,6 @@ def compile_expression(env, expression, depth=0):
         return compile_symbol(env, expression)
 
 def compile_main(ast):
-    print('Compiling application...')
     module = ir.Module(name='main')
     module.triple = llvm.get_default_triple()
 
