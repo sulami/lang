@@ -35,7 +35,7 @@ int nebula_main(int argc, char** argv) {
 
 // Primitive values are <128, pointers >=128.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4, TYPE = 5,
-           STRING = 128, CONS = 129, FUNCTION = 130};
+           STRING = 128, CONS = 129, FUNCTION = 130, ARRAY = 131};
 union Primitive {
   bool b;
   int i;
@@ -255,6 +255,9 @@ void print_value(struct Value* value) {
     case FUNCTION:
       printf("<type: function>");
       break;
+    case ARRAY:
+      printf("<type: array>");
+      break;
     default:
       printf("<type: unknown>");
       break;
@@ -272,6 +275,11 @@ void print_value(struct Value* value) {
     break;
   case FUNCTION:
     printf("<function: %s>", ((struct Function*)value->value->ptr)->name);
+    break;
+  case ARRAY:
+    printf("[");
+    /* print_value(value->value->i); */
+    printf("]");
     break;
   }
 }
@@ -427,6 +435,36 @@ struct Value* aget(struct Value* key, struct Value* list) {
     head = cdr(head);
   }
 
+  return make_value(NIL, NULL);
+}
+
+/* Arrays */
+
+// Takes a cons list and creates an array.
+struct Value* array(const int t, const struct Value* l) {
+  size_t len = 0;
+  const struct Value* head = l;
+  // Walk once to get the length.
+  while (NIL != head->value) {
+    ++len;
+    head = ((struct Cons*)head->value->ptr)->cdr;
+  }
+  head = l;
+
+  // Currently only char char arrays. Also handy as pointer arrays.
+  /* if (STRING == t) { */
+    char* arr = malloc((0 + len) * sizeof(char));
+    if (NULL == arr) {
+      exit(ENOMEM);
+    }
+    for (size_t pos = 0; pos < len; ++pos) {
+      *(arr+pos) = (char)((struct Cons*)head->value->ptr)->car->value->i;
+      head = ((struct Cons*)head->value->ptr)->cdr;
+    }
+    return make_value(STRING, (union Primitive*)arr);
+  /* } */
+
+  // Fall back to returning nil.
   return make_value(NIL, NULL);
 }
 

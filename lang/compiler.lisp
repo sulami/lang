@@ -20,11 +20,20 @@
 (declare cdr value (value))
 (declare alist value (value value value))
 (declare aget value (value value))
+(declare array value (i32 value))
 
 ;; LLVM
 (declare LLVMModuleCreateWithName void_ptr (string))
 (declare LLVMAddFunction void_ptr (void_ptr string void_ptr))
-(declare LLVMFunctionType void_ptr (void_ptr void_ptr i32 i32))
+(declare LLVMFunctionType void_ptr (void_ptr void_ptr i32 bool))
+(declare LLVMAppendBasicBlock void_ptr (void_ptr string))
+(declare LLVMCreateBuilder void_ptr ())
+(declare LLVMPositionBuilderAtEnd void (void_ptr void_ptr))
+(declare LLVMBuildRet void (void_ptr void_ptr))
+(declare LLVMInitializeNativeTarget void ())
+(declare LLVMCreateExecutionEngineForModule void_ptr (void_ptr void_ptr void_ptr))
+(declare LLVMDumpModule void (void_ptr))
+(declare LLVMConstInt void_ptr (void_ptr i32 i32))
 (declare LLVMInt32Type void_ptr ())
 
 ;; Convenience functions
@@ -291,6 +300,28 @@
                                        ast))))))))))
 
 (def main-module (LLVMModuleCreateWithName "foo"))
+(def I32 (LLVMInt32Type))
+;; Array of pointers
+(def main-param-types (array 128 (cons I32
+                                   (cons I32
+                                         nil))))
+
+(def main-type (LLVMFunctionType I32
+                                 main-param-types
+                                 2
+                                 false))
+(def main-function (LLVMAddFunction main-module
+                                    "mainception"
+                                    main-type))
+(def entry (LLVMAppendBasicBlock main-function "entry"))
+(def builder (LLVMCreateBuilder))
+(LLVMPositionBuilderAtEnd builder entry)
+(def rv (LLVMConstInt I32 42 0))
+(LLVMBuildRet builder rv)
+(LLVMInitializeNativeTarget)
+(LLVMCreateExecutionEngineForModule nil main-module nil)
+(LLVMDumpModule main-module)
+
 (defun compile (args)
   (nebula_debug main-module)
   (let ((source-file (nth args 1)))
