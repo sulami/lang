@@ -671,12 +671,11 @@ def main():
     debug(ast)
     main_mod = compile_main(ast)
     debug(main_mod)
-    main_mod = compile_ir(engine, str(main_mod))
     # debug(main_mod)
     with open('out.ll', 'w') as llvm_ir:
         llvm_ir.write(str(main_mod))
         llvm_ir.flush()
-    print('Compiled successfully!')
+    main_mod = compile_ir(engine, str(main_mod))
 
 if __name__ == '__main__':
     main()
