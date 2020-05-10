@@ -44,6 +44,7 @@ RUNTIME_TYPES = {
     'string': 128,
     'cons': 129,
     'function': 130,
+    'array': 131,
 }
 
 # Values
@@ -172,7 +173,7 @@ class Environment:
                 arg = self.unbox_value(
                     arg,
                     out_type=fn_arg_type,
-                    load=not name.startswith('LLVM') # HACK
+                    load=not hasattr(fn_arg_type, 'pointee')
                 )
             unboxed_args.append(arg)
         args = unboxed_args
@@ -191,7 +192,8 @@ class Environment:
                 # proper arbitrary interop.
                 fn_retval = self.builder.call(
                     self.lib['make_value'],
-                    [T_I32(RUNTIME_TYPES['int']), store_value(self, fn_retval)]
+                    # [T_I32(RUNTIME_TYPES['int']), store_value(self, fn_retval)]
+                    [T_I32(RUNTIME_TYPES['string']), fn_retval]
                 )
         return fn_retval
 
