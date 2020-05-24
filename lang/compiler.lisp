@@ -1,3 +1,5 @@
+;; -*- eval: (sly-mode -1) -*-
+
 ;; This is the compiler, bootstrapped.
 
 ;; At the same time this is also the ultimate test, as it's the most
