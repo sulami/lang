@@ -26,3 +26,6 @@ clean:
 
 debug: out
 	$(LLDB) $<
+
+nebula.ll: lang/nebula.c
+	$(CC) $(CFLAGS) -o $@ -S -emit-llvm $<
