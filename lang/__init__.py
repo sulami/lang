@@ -354,6 +354,7 @@ def compile_declare(env, expression, depth=0):
         'bool': T_BOOL,
         'i32': T_I32,
         'string': T_VOID_PTR,
+        'ptr_ptr': T_VOID_PTR.as_pointer(),
     }
     env.declare_fn(
         name,

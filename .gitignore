@@ -3,4 +3,5 @@
 *.so
 *.ll
 out
+bitception
 lang.egg-info

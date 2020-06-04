@@ -5,18 +5,24 @@
 #include <string.h>
 #include <time.h>
 
+#include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
+#include <llvm-c/ExecutionEngine.h>
 
 int usercode_main(int, char**);
 struct Value* cons(struct Value*, struct Value*);
 struct Value* cdr(struct Value*);
 struct Value* car(struct Value*);
 
+void nebula_debug(void* x) {
+  printf("[DEBUG] base 10: %u; base 16: %X\n", (unsigned int)x, (unsigned int)x);
+}
+
 /* Runtime */
 
 void init_nebula() {
   srand(time(NULL));
-  puts("Nebula initalised.");
+  /* puts("Nebula initalised."); */
 }
 
 /* This is the runtime main function. It will init the runtime and
@@ -64,8 +70,6 @@ struct Value* make_value(enum Type type, union Primitive* value) {
     exit(ENOMEM);
   }
 
-  /* printf("making value - ptr: %X - type: %d\n", retval, type); */
-
   // We have to allocate the actual value on the heap, as LLVM stores
   // things on the stack only, so we'd lose our boxed value when
   // returning from a function. Nil is a special case, as value is
@@ -83,7 +87,6 @@ struct Value* make_value(enum Type type, union Primitive* value) {
     retval->value = value;
   }
 
-  /* printf(" primitive: %X\n", retval->value); */
   retval->type = type;
   return retval;
 }
@@ -105,7 +108,6 @@ struct Value* make_function(char* name, void* fn_ptr) {
   strcpy(new_name, name);
   f->name = new_name;
   f->fn_ptr = fn_ptr;
-  /* printf("making function - fn name: %s; fn ptr: %X; struct ptr: %X\n", f->name, f->fn_ptr, f); */
 
   union Primitive* u = calloc(1, sizeof(union Primitive));
   u->ptr = f;
@@ -203,7 +205,6 @@ struct Value* type(struct Value* value) {
 }
 
 void print_value(struct Value* value) {
-  /* printf("print_value: %d: %X\n", value->type, value->value); */
   switch (value->type) {
   case NIL:
     printf("nil");
@@ -325,8 +326,7 @@ struct Value* cons_to_string(const struct Value* l) {
   head = l;
   // Walk again to fill the string.
   for (size_t pos = 0; pos < len; ++pos) {
-    *(str+pos) = (char)((struct Cons*)head->value->ptr)->car->value->i;
-    /* sprintf((char*), str + pos); */
+    *(str+pos) = (char)((struct Cons*)head->value->ptr)->car->value->ptr;
     head = ((struct Cons*)head->value->ptr)->cdr;
   }
   return make_value(STRING, (union Primitive*)str);
@@ -450,22 +450,17 @@ struct Value* array(const int t, const struct Value* l) {
     head = ((struct Cons*)head->value->ptr)->cdr;
   }
   head = l;
-
-  // Currently only char char arrays. Also handy as pointer arrays.
-  /* if (STRING == t) { */
-    char* arr = malloc((0 + len) * sizeof(char));
-    if (NULL == arr) {
-      exit(ENOMEM);
-    }
-    for (size_t pos = 0; pos < len; ++pos) {
-      *(arr+pos) = (char)((struct Cons*)head->value->ptr)->car->value->i;
-      head = ((struct Cons*)head->value->ptr)->cdr;
-    }
-    return make_value(STRING, (union Primitive*)arr);
-  /* } */
-
-  // Fall back to returning nil.
-  return make_value(NIL, NULL);
+  // XXX Currently only does pointers.
+  void** arr = malloc(len * sizeof(void*));
+  if (NULL == arr) {
+    exit(ENOMEM);
+  }
+  for (size_t pos = 0; pos < len; ++pos) {
+    arr[pos] = ((struct Cons*)head->value->ptr)->car->value;
+    head = ((struct Cons*)head->value->ptr)->cdr;
+  }
+  struct Value* rv = make_value(ARRAY, (void*)arr);
+  return rv;
 }
 
 /* Testing */
@@ -474,8 +469,4 @@ struct Value* random_bool() {
   union Primitive* u = calloc(1, sizeof(union Primitive));
   u->b = rand() % 2;
   return make_value(BOOL, u);
-}
-
-void nebula_debug(void* x) {
-  printf("[DEBUG] base 10: %u; base 16: %X\n", (unsigned int)x, (unsigned int)x);
 }
