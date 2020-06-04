@@ -270,8 +270,12 @@ void print_value(struct Value* value) {
   case CONS:
     printf("(");
     print_value(car(value));
-    printf(" ");
-    print_value(cdr(value));
+    struct Value* head = cdr(value);
+    while (NIL != head->type) {
+      printf(" ");
+      print_value(car(head));
+      head = cdr(head);
+    }
     printf(")");
     break;
   case FUNCTION:
