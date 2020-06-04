@@ -35,7 +35,7 @@
 (declare LLVMCreateBuilder void_ptr ())
 (declare LLVMPositionBuilderAtEnd void (void_ptr void_ptr))
 (declare LLVMBuildRet void (void_ptr void_ptr))
-(declare LLVMDumpModule void (void_ptr))
+(declare LLVMPrintModuleToString string (void_ptr))
 (declare LLVMWriteBitcodeToFile void (void_ptr string))
 (declare LLVMConstInt void_ptr (void_ptr i32 i32))
 (declare LLVMInt32Type void_ptr ())
@@ -303,35 +303,37 @@
                                  (cons (cons->str (take-while take-word unparsed))
                                        ast))))))))))
 
-;; (defun compile (args)
-;;   (nebula_debug main-module)
-;;   (let ((source-file (nth args 1)))
-;;     (print "Compiling ")
-;;     (print source-file)
-;;     (println "...")
-;;     (let ((source-code (str->cons (slurp source-file))))
-;;       (println (cadr (parse source-code nil))))))
+(defun compile-source (args)
+  (let ((source-file (nth args 1)))
+    (let ((source-code (str->cons (slurp source-file))))
+      (println (cadr (parse source-code nil))))))
 
-;; (compile argv)
+(defun compile-module ()
+  (def main-module (LLVMModuleCreateWithName "my-module"))
+  (def I32 (LLVMInt32Type))
+  ;; Array of pointers
+  (def main-function-type (LLVMFunctionType (LLVMInt32Type)
+                                            (array 128 (cons (LLVMInt32Type)
+                                                             (cons (LLVMInt32Type)
+                                                                   nil)))
+                                            2
+                                            0))
+  (def main-function (LLVMAddFunction main-module
+                                      "main"
+                                      main-function-type))
+  (def entry (LLVMAppendBasicBlock main-function "entry"))
+  (def builder (LLVMCreateBuilder))
+  (LLVMPositionBuilderAtEnd builder entry)
+  (def rv (LLVMConstInt I32 42 0))
+  (LLVMBuildRet builder rv)
+  (def module-ir (LLVMPrintModuleToString main-module))
+  (spit "bitception.ll" module-ir))
 
-(def main-module (LLVMModuleCreateWithName "my-module"))
-(def I32 (LLVMInt32Type))
-;; Array of pointers
-(def main-function-type (LLVMFunctionType (LLVMInt32Type)
-                                          (array 128 (cons (LLVMInt32Type)
-                                                           (cons (LLVMInt32Type)
-                                                                 nil)))
-                                          2
-                                          0))
-(def main-function (LLVMAddFunction main-module
-                                    "main"
-                                    main-function-type))
-(def entry (LLVMAppendBasicBlock main-function "entry"))
-(def builder (LLVMCreateBuilder))
-(LLVMPositionBuilderAtEnd builder entry)
-(def rv (LLVMConstInt I32 42 0))
-(LLVMBuildRet builder rv)
-(LLVMDumpModule main-module)
+(defun compily (args)
+  (compile-source args)
+  (compile-module))
+
+(compily argv)
 
 ;; (def error (make-pointer))
 ;; (LLVMVerifyModule main-module LLVMAbortProcessAction error)

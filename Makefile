@@ -39,4 +39,4 @@ bitception.o: bitception.ll
 	$(LLC) --filetype=obj -o=$@ $<
 
 bitception.ll: out
-	./out &> $@
+	./out lang/compiler.lisp
