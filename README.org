@@ -1,0 +1,12 @@
+#+title: Nebula
+
+* Building
+
+Just ~make~ it.
+
+* Useful Links
+
+- [[https://llvm.org/doxygen/group__LLVMCCoreModule.html][LLVM-C core module docs]]
+- [[https://releases.llvm.org/10.0.0/docs/LangRef.html][LLVM IR Reference]]
+- [[https://llvmlite.readthedocs.io/en/v0.31.0/user-guide/ir/values.html][LLVMLite docs (Python)]]
+- [[https://www.cprogramming.com/tutorial/shared-libraries-linux-gcc.html][Shared libraries]]
