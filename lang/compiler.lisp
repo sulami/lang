@@ -312,9 +312,9 @@
   (def main-module (LLVMModuleCreateWithName "my-module"))
   (def I32 (LLVMInt32Type))
   ;; Array of pointers
-  (def main-function-type (LLVMFunctionType (LLVMInt32Type)
-                                            (array 128 (cons (LLVMInt32Type)
-                                                             (cons (LLVMInt32Type)
+  (def main-function-type (LLVMFunctionType I32
+                                            (array 128 (cons I32
+                                                             (cons I32
                                                                    nil)))
                                             2
                                             0))
