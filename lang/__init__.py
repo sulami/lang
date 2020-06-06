@@ -164,10 +164,14 @@ class Environment:
         debug('fn.args', [a.type for a in fn.args])
         debug('args', [getattr(a, 'type', 'No type') for a in args])
 
+        if len(args) != len(fn.args):
+            raise Exception('Arity error: {} expected {} args, got {}'.format(
+                fn.name, len(fn.args), len(args)))
+
         unboxed_args = []
         for i in range(len(args)):
             arg = args[i]
-            fn_arg = fn.args[i] if i < len(fn.args) else None
+            fn_arg = fn.args[i]
             fn_arg_type = getattr(fn_arg, 'type', None)
             if T_VALUE_STRUCT_PTR == arg.type and arg.type != fn_arg_type:
                 arg = self.unbox_value(
@@ -500,8 +504,7 @@ def compile_symbol(env, expression):
         debug('Found symbol ' + expression + ' in global scope:')
         debug(env.global_scope[expression])
         return env.builder.load(env.global_scope[expression])
-    debug('Could not find symbol ' + expression + ' in global scope')
-    return None
+    raise Exception('Could not find symbol ' + expression + ' in global scope')
 
 def compile_expression(env, expression, depth=0):
     debug(' ' * (depth + 1) + 'Compiling expression: ' + str(expression))
