@@ -50,6 +50,25 @@ RUNTIME_TYPES = {
 # Values
 NULL_PTR = T_I32(0).inttoptr(T_VOID_PTR)
 
+FFI_TYPES = {
+    'value': T_VALUE_STRUCT_PTR,
+    'void': T_VOID,
+    'void_ptr': T_VOID_PTR,
+    'bool': T_BOOL,
+    'i32': T_I32,
+    'string': T_VOID_PTR,
+    'ptr_ptr': T_VOID_PTR.as_pointer(),
+}
+
+FFI_TYPE_MAPPING = {
+    T_VALUE_STRUCT_PTR: 128,
+    T_VOID: 0,
+    T_VOID_PTR: 128,
+    T_BOOL: 1,
+    T_I32: 2,
+    T_VOID_PTR.as_pointer(): 128,
+}
+
 def debug(*args):
     if DEBUG:
         print(*args)
@@ -191,13 +210,11 @@ class Environment:
                 # Synthesise a nil value for void functions.
                 fn_retval = compile_nil(self, None)
             else:
-                # TODO Use the correct type annotation.
-                # Should probably add that when declaring, if we want
-                # proper arbitrary interop.
+                if fn.ftype.return_type != T_VOID_PTR:
+                    fn_retval = store_value(self, fn_retval)
                 fn_retval = self.builder.call(
                     self.lib['make_value'],
-                    # [T_I32(RUNTIME_TYPES['int']), store_value(self, fn_retval)]
-                    [T_I32(RUNTIME_TYPES['string']), fn_retval]
+                    [T_I32(FFI_TYPE_MAPPING[fn.ftype.return_type]), fn_retval]
                 )
         return fn_retval
 
@@ -351,19 +368,10 @@ def compile_recur(env, expression, depth=0):
 
 def compile_declare(env, expression, depth=0):
     _, name, return_type, arg_types = expression
-    type_mapping = {
-        'value': T_VALUE_STRUCT_PTR,
-        'void': T_VOID,
-        'void_ptr': T_VOID_PTR,
-        'bool': T_BOOL,
-        'i32': T_I32,
-        'string': T_VOID_PTR,
-        'ptr_ptr': T_VOID_PTR.as_pointer(),
-    }
     env.declare_fn(
         name,
-        type_mapping[return_type],
-        [type_mapping[t] for t in arg_types]
+        FFI_TYPES[return_type],
+        [FFI_TYPES[t] for t in arg_types]
     )
 
 def compile_function_call(env, expression, depth=0):
