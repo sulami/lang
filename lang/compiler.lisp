@@ -320,9 +320,11 @@
   (cadr (parse (str->cons s) nil)))
 
 (defun compile-source (args)
-  (let ((source-file (nth args 1)))
-    (let ((source-code (slurp source-file)))
-      (map println (parse-string source-code)))))
+  (if (= 1 (count args))
+      nil
+      (let ((source-file (nth args 1)))
+        (let ((source-code (slurp source-file)))
+          (map println (parse-string source-code))))))
 
 (def I32 (LLVMInt32Type))
 
