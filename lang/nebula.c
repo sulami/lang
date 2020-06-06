@@ -374,6 +374,15 @@ struct Value* write_file(const struct Value* name,
   return make_value(NIL, NULL);
 }
 
+struct Value* read_line() {
+  char* buffer = NULL;
+  size_t size;
+  if (getline(&buffer, &size, stdin) == -1) {
+    // XXX Error unhandled. Check feof(stdin) & ferror(stdin).
+  }
+  return make_value(STRING, (union Primitive*)buffer);
+}
+
 /* Cons cells */
 
 struct Value* cons(struct Value* head, struct Value* tail) {

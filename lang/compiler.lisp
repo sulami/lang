@@ -21,6 +21,7 @@
 (declare cons_to_string value (value))
 (declare read_file value (value value))
 (declare write_file value (value value value))
+(declare read_line value ())
 (declare car value (value))
 (declare cdr value (value))
 (declare alist value (value value value))
@@ -311,10 +312,13 @@
                                      (cons (cons->str (take-while take-word unparsed))
                                            ast)))))))))))
 
+(defun parse-string (s)
+  (cadr (parse (str->cons s) nil)))
+
 (defun compile-source (args)
   (let ((source-file (nth args 1)))
-    (let ((source-code (str->cons (slurp source-file))))
-      (map println (cadr (parse source-code nil))))))
+    (let ((source-code (slurp source-file)))
+      (map println (parse-string source-code)))))
 
 (defun compile-module ()
   (def main-module (LLVMModuleCreateWithName "my-module"))
@@ -337,9 +341,19 @@
   (def module-ir (LLVMPrintModuleToString main-module))
   (spit "bitception.ll" module-ir))
 
+(defun repl ()
+  (print "> ")
+  (let ((input (read_line)))
+    (if (= "" input)
+        (println "Done, bye.")
+        (progn
+          (map println (parse-string input))
+          (recur)))))
+
 (defun compily (args)
   (compile-source args)
-  (compile-module))
+  (compile-module)
+  (repl))
 
 (compily argv)
 
