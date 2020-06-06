@@ -408,6 +408,8 @@ def compile_function_call(env, expression, depth=0):
     elif compile_symbol(env, expression[0]):
         # Try looking it up in the local scope first.
         fn_value = compile_symbol(env, expression[0])
+    else:
+        raise Exception("Couldn't find function: " + expression[0])
 
     # There is a lot of pointer following and struct indexing going on
     # here until we finally get to the function pointer.
