@@ -261,52 +261,60 @@
               (cons (reverse ast)
                     nil))
 
-        (if (= \; c)
-            ;; A comment, skip until the newline.
-            (recur (drop-while (lambda (x) (not= \newline x))
-                               unparsed)
-                   ast)
+        (if (= \\ c)
+            ;; Escaped character, add as token.
+            ;; XXX Currently only a single char.
+            ;; FIXME Can't be the last char.
+            (recur (drop 2 unparsed)
+                   (cons (nth unparsed 1)
+                         ast))
 
-            (if (whitespace? c)
-                ;; Just skip ahead.
-                (recur (drop-while whitespace? unparsed)
+            (if (= \; c)
+                ;; A comment, skip until the newline.
+                (recur (drop-while (lambda (x) (not= \newline x))
+                                   unparsed)
                        ast)
 
-                (if (= \( c)
-                    ;; Inner sexp, call down one level.
-                    (let ((inner (parse (cdr unparsed)
-                                        nil
-                                        false)))
-                      (let ((inner-unparsed (car inner))
-                            (inner-ast (cadr inner)))
-                        (debugp "inner ast" inner-ast)
-                        (recur inner-unparsed
-                               (cons inner-ast
-                                     ast))))
+                (if (whitespace? c)
+                    ;; Just skip ahead.
+                    (recur (drop-while whitespace? unparsed)
+                           ast)
 
-                    (if (= \) c)
-                        ;; Done in this sexp, return up one level.
-                        (cons (cdr unparsed)
-                              (cons (reverse ast) nil))
+                    (if (= \( c)
+                        ;; Inner sexp, call down one level.
+                        (let ((inner (parse (cdr unparsed)
+                                            nil
+                                            false)))
+                          (let ((inner-unparsed (car inner))
+                                (inner-ast (cadr inner)))
+                            (debugp "inner ast" inner-ast)
+                            (recur inner-unparsed
+                                   (cons inner-ast
+                                         ast))))
 
-                        ;; Default case: take a word
-                        (let ((take-word (lambda (x)
-                                           (if (nil? x)
-                                               false
-                                               (and (not (whitespace? x))
-                                                    (and (not= \( x)
-                                                         (and (not= \) x)
-                                                              (not= \; x))))))))
-                          (debugp "ast" ast)
-                          (debugp "the word" (cons->str (take-while take-word unparsed)))
-                          (recur (drop-while take-word unparsed)
-                                 (cons (cons->str (take-while take-word unparsed))
-                                       ast))))))))))
+                        (if (= \) c)
+                            ;; Done in this sexp, return up one level.
+                            (cons (cdr unparsed)
+                                  (cons (reverse ast) nil))
+
+                            ;; Default case: take a word
+                            (let ((take-word (lambda (x)
+                                               (if (nil? x)
+                                                   false
+                                                   (and (not (whitespace? x))
+                                                        (and (not= \( x)
+                                                             (and (not= \) x)
+                                                                  (not= \; x))))))))
+                              (debugp "ast" ast)
+                              (debugp "the word" (cons->str (take-while take-word unparsed)))
+                              (recur (drop-while take-word unparsed)
+                                     (cons (cons->str (take-while take-word unparsed))
+                                           ast)))))))))))
 
 (defun compile-source (args)
   (let ((source-file (nth args 1)))
     (let ((source-code (str->cons (slurp source-file))))
-      (println (cadr (parse source-code nil))))))
+      (map println (cadr (parse source-code nil))))))
 
 (defun compile-module ()
   (def main-module (LLVMModuleCreateWithName "my-module"))
