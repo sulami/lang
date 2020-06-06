@@ -35,6 +35,8 @@
 (declare LLVMAppendBasicBlock void_ptr (void_ptr string))
 (declare LLVMCreateBuilder void_ptr ())
 (declare LLVMPositionBuilderAtEnd void (void_ptr void_ptr))
+(declare LLVMGetParam void_ptr (void_ptr i32))
+(declare LLVMBuildAdd void_ptr (void_ptr void_ptr void_ptr string))
 (declare LLVMBuildRet void (void_ptr void_ptr))
 (declare LLVMPrintModuleToString string (void_ptr))
 (declare LLVMWriteBitcodeToFile void (void_ptr string))
@@ -250,6 +252,8 @@
         (println x))
       nil))
 
+;; Parser
+
 (defun parse (unparsed ast)
   (let ((c (car unparsed))
         (current-word (car ast))
@@ -320,9 +324,10 @@
     (let ((source-code (slurp source-file)))
       (map println (parse-string source-code)))))
 
+(def I32 (LLVMInt32Type))
+
 (defun compile-module ()
-  (def main-module (LLVMModuleCreateWithName "my-module"))
-  (def I32 (LLVMInt32Type))
+  (def main-module (LLVMModuleCreateWithName "main-module"))
   ;; Array of pointers
   (def main-function-type (LLVMFunctionType I32
                                             (array 128 (cons I32
@@ -333,19 +338,75 @@
   (def main-function (LLVMAddFunction main-module
                                       "main"
                                       main-function-type))
-  (def entry (LLVMAppendBasicBlock main-function "entry"))
-  (def builder (LLVMCreateBuilder))
-  (LLVMPositionBuilderAtEnd builder entry)
-  (def rv (LLVMConstInt I32 42 0))
-  (LLVMBuildRet builder rv)
+  (def main-entry (LLVMAppendBasicBlock main-function "entry"))
+  (def main-builder (LLVMCreateBuilder))
+  (LLVMPositionBuilderAtEnd main-builder main-entry)
+  (def main-rv (LLVMConstInt I32 42 0))
+  (LLVMBuildRet main-builder main-rv)
   (def module-ir (LLVMPrintModuleToString main-module))
   (spit "bitception.ll" module-ir))
+
+(declare LLVMVerifyModule void (void_ptr void_ptr void_ptr))
+(declare LLVMLinkInMCJIT void ())
+(declare LLVMLinkInInterpreter void ())
+(declare LLVMInitializeX86Target void ())
+(declare LLVMCreateExecutionEngineForModule i32 (void_ptr void_ptr void_ptr))
+(declare LLVMCreateGenericValueOfInt void_ptr (void_ptr i32 bool))
+(declare LLVMRunFunction void_ptr (void_ptr void_ptr i32 void_ptr))
+(declare puts void (void_ptr))
+
+(defun jit-compile ()
+  ;; This is mostly identitcal to the regular compile, just different
+  ;; code. Note that `def' bindings are global on an LLVM-level, and
+  ;; the Python compiler is not keeping track of where they are, so
+  ;; they have to have unique names because we can't prefix them by
+  ;; location. I don't think I'll fix this before bootstrapping.
+  (def jit-module (LLVMModuleCreateWithName "jit-module"))
+  (def jit-function-type (LLVMFunctionType I32
+                                           (array 128 (cons I32
+                                                            (cons I32
+                                                                  nil)))
+                                           2
+                                           0))
+  (def jit-function (LLVMAddFunction main-module
+                                     "jit-add"
+                                     jit-function-type))
+  (def jit-entry (LLVMAppendBasicBlock jit-function "entry"))
+  (def jit-builder (LLVMCreateBuilder))
+  (LLVMPositionBuilderAtEnd jit-builder jit-entry)
+  (def jit-rv (LLVMBuildAdd jit-builder
+                            (LLVMGetParam jit-function 0)
+                            (LLVMGetParam jit-function 1)
+                            "rv"))
+  (LLVMBuildRet jit-builder jit-rv)
+  (def jit-verify-error 0)
+  (LLVMVerifyModule jit-module 0 jit-verify-error)
+
+  ;; This is the interesting part, setup an execution engine and JIT
+  ;; compile the function above.
+  (LLVMInitializeX86Target)
+  (LLVMLinkInMCJIT)
+  (LLVMLinkInInterpreter)
+  ;; Pointers.
+  (def jit-engine 0)
+  (def jit-engine-error 0)
+  (def jit-engine-creation (LLVMCreateExecutionEngineForModule jit-engine jit-module jit-engine-error))
+  (if (not (= 0 jit-engine-creation))
+      (progn (print "error creating execution engine: ")
+             (println jit-engine-creation))
+      nil)
+  (def jit-args (array 128 (cons (LLVMCreateGenericValueOfInt I32 4 false)
+                               (cons (LLVMCreateGenericValueOfInt I32 38 false)
+                                     nil))))
+  (def jit-llvm-result (LLVMRunFunction jit-engine jit-function 2 jit-args))
+  nil
+  )
 
 (defun repl ()
   (print "> ")
   (let ((input (read_line)))
     (if (= "" input)
-        (println "Done, bye.")
+        (println "\nDone, bye.")
         (progn
           (map println (parse-string input))
           (recur)))))
@@ -353,6 +414,7 @@
 (defun compily (args)
   (compile-source args)
   (compile-module)
+  (jit-compile)
   (repl))
 
 (compily argv)
@@ -361,9 +423,7 @@
 ;; (LLVMVerifyModule main-module LLVMAbortProcessAction error)
 
 ;; (LLVMInitializeX86Target)
-;; Primitive way of obtaining a pointer.
-;; (defun make-pointer ()
-;;   (malloc 8))
+
 ;; (def execution-engine-ref (make-pointer))
 ;; (def error (make-pointer))
 ;; (LLVMCreateExecutionEngineForModule execution-engine-ref main-module error)
