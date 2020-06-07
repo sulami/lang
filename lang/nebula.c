@@ -483,3 +483,52 @@ struct Value* random_bool() {
   u->b = rand() % 2;
   return make_value(BOOL, u);
 }
+
+void jit_stuff() {
+  LLVMModuleRef mod = LLVMModuleCreateWithName("my_module");
+
+  LLVMTypeRef param_types[] = { LLVMInt32Type(), LLVMInt32Type() };
+  LLVMTypeRef ret_type = LLVMFunctionType(LLVMInt32Type(), param_types, 2, 0);
+  LLVMValueRef sum = LLVMAddFunction(mod, "sum", ret_type);
+
+  LLVMBasicBlockRef entry = LLVMAppendBasicBlock(sum, "entry");
+
+  LLVMBuilderRef builder = LLVMCreateBuilder();
+  LLVMPositionBuilderAtEnd(builder, entry);
+  LLVMValueRef tmp = LLVMBuildAdd(builder, LLVMGetParam(sum, 0), LLVMGetParam(sum, 1), "tmp");
+  LLVMBuildRet(builder, tmp);
+
+  char *error = NULL;
+  LLVMVerifyModule(mod, LLVMAbortProcessAction, &error);
+  LLVMDisposeMessage(error);
+
+  LLVMExecutionEngineRef engine;
+  error = NULL;
+  LLVMLinkInMCJIT();
+  LLVMInitializeNativeTarget();
+  LLVMInitializeNativeAsmPrinter();
+  if (LLVMCreateExecutionEngineForModule(&engine, mod, &error) != 0) {
+    fprintf(stderr, "failed to create execution engine\n");
+    abort();
+  }
+  if (error) {
+    fprintf(stderr, "error: %s\n", error);
+    LLVMDisposeMessage(error);
+    exit(EXIT_FAILURE);
+  }
+
+  int (*sum_func)(int, int) = (int (*)(int, int))LLVMGetFunctionAddress(engine, "sum");
+  printf("%d\n", sum_func(38, 4));
+}
+
+void debug_value(struct Value* val) {
+  printf("[DEBUG] value type: %u\n", value_type(val));
+  printf("[DEBUG] value pointer: base 10: %u; base 16: %X\n", (unsigned int)val, (unsigned int)val);
+  union Primitive* u = val->value;
+  printf("[DEBUG] value primitive: base 10: %u; base 16: %X\n", (unsigned int)u, (unsigned int)u);
+  printf("[DEBUG] print value: ");
+  /* print_value(val); */
+  printf("\n");
+  /* void* ptr = val->value->ptr; */
+  /* printf("[DEBUG] value value: base 10: %u; base 16: %X\n", (unsigned int)ptr, (unsigned int)ptr); */
+}

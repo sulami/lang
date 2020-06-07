@@ -352,10 +352,13 @@
 (declare LLVMLinkInMCJIT void ())
 (declare LLVMLinkInInterpreter void ())
 (declare LLVMInitializeX86Target void ())
+(declare LLVMInitializeX86AsmPrinter void ())
 (declare LLVMCreateExecutionEngineForModule i32 (void_ptr void_ptr void_ptr))
 (declare LLVMCreateGenericValueOfInt void_ptr (void_ptr i32 bool))
+(declare LLVMGetFunctionAddress void_ptr (void_ptr string))
 (declare LLVMRunFunction void_ptr (void_ptr void_ptr i32 void_ptr))
-(declare puts void (void_ptr))
+(declare jit_stuff void ())
+(declare debug_value void (value))
 
 (defun jit-compile ()
   ;; This is mostly identitcal to the regular compile, just different
@@ -370,7 +373,7 @@
                                                                   nil)))
                                            2
                                            0))
-  (def jit-function (LLVMAddFunction main-module
+  (def jit-function (LLVMAddFunction jit-module
                                      "jit-add"
                                      jit-function-type))
   (def jit-entry (LLVMAppendBasicBlock jit-function "entry"))
@@ -387,20 +390,28 @@
   ;; This is the interesting part, setup an execution engine and JIT
   ;; compile the function above.
   (LLVMInitializeX86Target)
+  (LLVMInitializeX86AsmPrinter)
   (LLVMLinkInMCJIT)
   (LLVMLinkInInterpreter)
   ;; Pointers.
   (def jit-engine 0)
   (def jit-engine-error 0)
-  (def jit-engine-creation (LLVMCreateExecutionEngineForModule jit-engine jit-module jit-engine-error))
+  (def jit-engine-creation (LLVMCreateExecutionEngineForModule jit-engine
+                                                               jit-module
+                                                               jit-engine-error))
   (if (not (= 0 jit-engine-creation))
       (progn (print "error creating execution engine: ")
              (println jit-engine-creation))
       nil)
-  (def jit-args (array 128 (cons (LLVMCreateGenericValueOfInt I32 4 false)
-                               (cons (LLVMCreateGenericValueOfInt I32 38 false)
-                                     nil))))
-  (def jit-llvm-result (LLVMRunFunction jit-engine jit-function 2 jit-args))
+  ;; (jit_stuff)
+
+  (debug_value jit-engine)
+
+  ;; FIXME This call currently segfaults. I don't know why, but my
+  ;; money is on bad unwrapping.
+  (def jit-fn-ptr (LLVMGetFunctionAddress jit-engine "jit-add"))
+  ;; (call-fn-ptr jit-fn)
+
   nil
   )
 
