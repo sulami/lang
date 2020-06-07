@@ -359,6 +359,10 @@
 (declare LLVMRunFunction void_ptr (void_ptr void_ptr i32 void_ptr))
 (declare jit_stuff void ())
 (declare debug_value void (value))
+(declare func_ptr void (value string))
+(declare make_pointer value ())
+(declare deref void_ptr (value))
+(declare call void (void_ptr))
 
 (defun jit-compile ()
   ;; This is mostly identitcal to the regular compile, just different
@@ -394,7 +398,8 @@
   (LLVMLinkInMCJIT)
   (LLVMLinkInInterpreter)
   ;; Pointers.
-  (def jit-engine 0)
+  (def jit-engine (make_pointer))
+  ;; (debug_value jit-engine)
   (def jit-engine-error 0)
   (def jit-engine-creation (LLVMCreateExecutionEngineForModule jit-engine
                                                                jit-module
@@ -405,12 +410,12 @@
       nil)
   ;; (jit_stuff)
 
-  (debug_value jit-engine)
-
   ;; FIXME This call currently segfaults. I don't know why, but my
   ;; money is on bad unwrapping.
-  (def jit-fn-ptr (LLVMGetFunctionAddress jit-engine "jit-add"))
-  ;; (call-fn-ptr jit-fn)
+  (def jit-fptr (LLVMGetFunctionAddress (deref jit-engine) "jit-add"))
+  (debug_value jit-fptr)
+  (call jit-fptr)
+  ;; (func_ptr jit-engine "jit-add")
 
   nil
   )
@@ -428,7 +433,8 @@
   (compile-source args)
   (compile-module)
   (jit-compile)
-  (repl))
+  ;; (repl)
+  )
 
 (compily argv)
 

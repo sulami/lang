@@ -41,7 +41,7 @@ int nebula_main(int argc, char** argv) {
 
 // Primitive values are <128, pointers >=128.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4, TYPE = 5,
-           STRING = 128, CONS = 129, FUNCTION = 130, ARRAY = 131};
+           STRING = 128, CONS = 129, FUNCTION = 130, ARRAY = 131, POINTER = 132};
 union Primitive {
   bool b;
   int i;
@@ -286,6 +286,9 @@ void print_value(struct Value* value) {
     /* print_value(value->value->i); */
     printf("]");
     break;
+  case POINTER:
+    printf("<ptr: %X>", (uint32_t)value->value->ptr);
+    break;
   }
 }
 
@@ -476,6 +479,23 @@ struct Value* array(const int t, const struct Value* l) {
   return rv;
 }
 
+/* Pointers */
+
+struct Value* make_pointer() {
+  union Primitive* u = calloc(1, sizeof(union Primitive));
+  u->ptr = NULL;
+  return make_value(POINTER, u);
+}
+
+void* deref(struct Value* val) {
+  nebula_debug(val->value->ptr);
+  return val->value->ptr;
+}
+
+void call(void* fptr) {
+  printf("%d\n", ((int (*)(int, int))fptr)(38, 4));
+}
+
 /* Testing */
 
 struct Value* random_bool() {
@@ -521,13 +541,18 @@ void jit_stuff() {
   printf("%d\n", sum_func(38, 4));
 }
 
+void func_ptr(struct Value* engine, const char* name) {
+  printf("%s\n", name);
+  LLVMGetFunctionAddress((LLVMExecutionEngineRef)engine->value->ptr, name);
+}
+
 void debug_value(struct Value* val) {
   printf("[DEBUG] value type: %u\n", value_type(val));
   printf("[DEBUG] value pointer: base 10: %u; base 16: %X\n", (unsigned int)val, (unsigned int)val);
   union Primitive* u = val->value;
   printf("[DEBUG] value primitive: base 10: %u; base 16: %X\n", (unsigned int)u, (unsigned int)u);
   printf("[DEBUG] print value: ");
-  /* print_value(val); */
+  print_value(val);
   printf("\n");
   /* void* ptr = val->value->ptr; */
   /* printf("[DEBUG] value value: base 10: %u; base 16: %X\n", (unsigned int)ptr, (unsigned int)ptr); */
