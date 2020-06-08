@@ -10,3 +10,4 @@ Just ~make~ it.
 - [[https://releases.llvm.org/10.0.0/docs/LangRef.html][LLVM IR Reference]]
 - [[https://llvmlite.readthedocs.io/en/v0.31.0/user-guide/ir/values.html][LLVMLite docs (Python)]]
 - [[https://www.cprogramming.com/tutorial/shared-libraries-linux-gcc.html][Shared libraries]]
+- [[https://github.com/owst/getting-started-with-the-newer-llvm-c-api/blob/master/sum.c][MCJIT example in C]]
