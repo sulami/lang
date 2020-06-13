@@ -439,6 +439,16 @@
 (defun parse-string (s)
   (cadr (parse (str->cons s) nil)))
 
+;; Token types.
+
+(defun number-token? (s)
+  (all? number-char? (str->cons s)))
+
+(defun classify-token (s)
+  (if (all? number-char? (str->cons s))
+      1
+      2))
+
 (defun compile-source (args)
   (if (= 1 (count args))
       nil
@@ -540,13 +550,23 @@
   nil
   )
 
+;; FIXME currently can't return strings from functions, and probably
+;; no other pointer types either.
+(defun a-string ()
+  "hullo")
+
+(defun repl-print (sym)
+  (println sym)
+  (println (a-string))
+  (println (classify-token sym)))
+
 (defun repl ()
   (print "> ")
   (let ((input (read_line)))
     (if (= "" input)
         (println "\nDone, bye.")
-        (progn
-          (map println (parse-string input))
+        (let ((parsed (parse-string input)))
+          (map repl-print parsed)
           (recur)))))
 
 (defun rrb-vector-test ()
@@ -576,9 +596,9 @@
   ;; (compile-source args)
   ;; (compile-module)
   ;; (jit-compile)
-  ;; (repl)
-  (rrb-vector-test)
-  (rrb-hash-map-test)
+  (repl)
+  ;; (rrb-vector-test)
+  ;; (rrb-hash-map-test)
   )
 
 (compily argv)
