@@ -9,10 +9,10 @@ LLDB=${LLVM_PATH}/lldb
 
 all: out
 
-out: out.o nebula.o
+out: out.o nebula.o rbb.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
-nebula.o: lang/nebula.c
+%.o: lang/%.c
 	$(CC) $(CFLAGS) -Wall -c $<
 
 out.o: out.ll
@@ -22,7 +22,7 @@ out.ll: lang/__init__.py lang/compiler.lisp
 	poetry run lang lang/compiler.lisp
 
 clean:
-	rm -f out.ll nebula.o out bitception bitception.o bitception.ll
+	rm -f *.o *.ll out bitception
 
 debug: out
 	$(LLDB) $<
