@@ -189,23 +189,59 @@
                            (cons (f (car from)) to))))))
     (reverse (map* f l nil))))
 
+(defun reducer (f l acc)
+  (if (nil? l)
+      acc
+      (recur f
+             (cdr l)
+             (f acc (car l)))))
+
 (defun reduce (f l)
   (let ((first-result (f (car l) (car (cdr l))))
-        (remaining-list (cdr (cdr l)))
-        (reduce* (lambda (f from to)
-                   (if (nil? from)
-                       to
-                       (recur f
-                              (cdr from)
-                              (f to (car from)))))))
-    (reduce* f remaining-list first-result)))
+        (remaining-list (cdr (cdr l))))
+    (reducer f remaining-list first-result)))
+
+;; XXX These don't short-circuit.
+
+(defun all? (f l)
+  (reducer (lambda (acc x) (and acc x))
+           (map f l)
+           true))
+
+(defun any? (f l)
+  (reducer (lambda (acc x) (or acc x))
+           (map f l)
+           false))
+
+(defun in? (elm l)
+  (any? (lambda (x) (= elm x)) l))
 
 ;; Chars
 
-(defun whitespace? (c)
+(defun whitespace-char? (c)
   (or (= c \space)
       (or (= c \tab)
           (= c \newline))))
+
+(defun number-char? (c)
+  (and (< 47 c)
+       (< c 58)))
+
+(defun lower-alpha-char? (c)
+  (and (< 64 c)
+       (< c 91)))
+
+(defun upper-alpha-char? (c)
+  (and (< 96 c)
+       (< c 123)))
+
+(defun alpha-char? (c)
+  (or (lower-alpha-char? c)
+      (upper-alpha-char? c)))
+
+(defun alphanum-char? (c)
+  (or (alpha-char? c)
+      (number-char? c)))
 
 ;; Strings
 
@@ -364,9 +400,9 @@
                                    unparsed)
                        ast)
 
-                (if (whitespace? c)
+                (if (whitespace-char? c)
                     ;; Just skip ahead.
-                    (recur (drop-while whitespace? unparsed)
+                    (recur (drop-while whitespace-char? unparsed)
                            ast)
 
                     (if (= \( c)
@@ -390,7 +426,7 @@
                             (let ((take-word (lambda (x)
                                                (if (nil? x)
                                                    false
-                                                   (and (not (whitespace? x))
+                                                   (and (not (whitespace-char? x))
                                                         (and (not= \( x)
                                                              (and (not= \) x)
                                                                   (not= \; x))))))))
