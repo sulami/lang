@@ -27,6 +27,7 @@
 (declare alist value (value value value))
 (declare aget value (value value))
 (declare array value (i32 value))
+(declare hash i64 (string))
 
 ;; LLVM
 (declare LLVMModuleCreateWithName void_ptr (string))
@@ -217,6 +218,87 @@
 (defun cons->str (l)
   (cons_to_string l))
 
+;; Wrapping RRB tree-based vector functions.
+
+;; Note that due to the lack of an error system, these are currently
+;; quite quiet on OOB errors.
+
+(declare rrb_create void_ptr ())
+(declare rrb_count i32 (void_ptr))
+(declare rrb_nth value (void_ptr i32))
+(declare rrb_pop void_ptr (void_ptr))
+(declare rrb_peek value (void_ptr))
+(declare rrb_push void_ptr (void_ptr value))
+(declare rrb_update void_ptr (void_ptr i32 value))
+(declare rrb_concat void_ptr (void_ptr void_ptr))
+(declare rrb_slice void_ptr (void_ptr i32 i32))
+
+(defun ->vec (ptr)
+  (make_value 133 ptr))
+
+(defun vector ()
+  (->vec (rrb_create)))
+
+(defun vpush (xs elm)
+  (->vec (rrb_push xs elm)))
+
+(defun vcount (xs)
+  (rrb_count xs))
+
+(defun vnth (xs i)
+  (if (< i (vcount xs))
+      (rrb_nth xs i)
+      nil))
+
+(defun vpop (xs)
+  (if (zero? (vcount xs))
+      xs
+      (->vec (rrb_pop xs))))
+
+(defun vpeek (xs)
+  (if (zero? (vcount xs))
+      nil
+      (rrb_peek xs)))
+
+(defun vupdate (xs i elm)
+  (if (< i (vcount xs))
+      (->vec (rrb_update xs i elm))
+      xs))
+
+(defun vconcat (xs ys)
+  (->vec (rrb_concat xs ys)))
+
+(defun vslice (xs from to)
+  (let ((len (vcount xs)))
+    (if (and (< from len)
+             (< to len))
+        (->vec (rrb_slice xs from to))
+        xs)))
+
+;; Bad hash-maps. Going to do proper "Ideal Hash Trees" eventually.
+
+(defun ->hash-map (xs)
+  (make_value 134 xs))
+
+(defun hash-map ()
+  (->hash-map (vector)))
+
+(defun assoc (xs k v)
+  (let ((hashed-key (hash k))
+        (new-vec (vector)))
+    (->hash-map (vpush xs (vpush (vpush new-vec hashed-key) v)))))
+
+(defun get (xs k)
+  (let ((get* (lambda (xs k i)
+                 (if (zero? i)
+                     nil
+                     (let ((pair (vnth xs (dec i))))
+                       (if (= k (vnth pair 0))
+                           (vnth pair 1)
+                           (recur xs k (dec i))))))))
+    (get* xs (hash k) (vcount xs))))
+
+
 ;; Types
 ;; There's currently no notation for types, so we just derive them.
 
@@ -229,6 +311,8 @@
 (def STRING (type "foo"))
 (def CONS (type (cons 1 nil)))
 (def FUNCTION (type (lambda (x) x)))
+(def VECTOR (type (vector)))
+(def HASH-MAP (type (hash-map)))
 
 ;; nil? is defined in terms of its value above.
 (defun bool? (x) (= BOOL (type x)))
@@ -429,66 +513,10 @@
           (map println (parse-string input))
           (recur)))))
 
-;; Wrapping RRB tree-based vector functions.
-
-;; Note that due to the lack of an error system, these are currently
-;; quite quiet on OOB errors.
-
-(declare rrb_create void_ptr ())
-(declare rrb_count i32 (void_ptr))
-(declare rrb_nth value (void_ptr i32))
-(declare rrb_pop void_ptr (void_ptr))
-(declare rrb_peek value (void_ptr))
-(declare rrb_push void_ptr (void_ptr value))
-(declare rrb_update void_ptr (void_ptr i32 value))
-(declare rrb_concat void_ptr (void_ptr void_ptr))
-(declare rrb_slice void_ptr (void_ptr i32 i32))
-
-(defun ->vec (ptr)
-  (make_value 133 ptr))
-
-(defun vector ()
-  (->vec (rrb_create)))
-
-(defun vpush (xs elm)
-  (->vec (rrb_push xs elm)))
-
-(defun vcount (xs)
-  (rrb_count xs))
-
-(defun vnth (xs i)
-  (if (< i (vcount xs))
-      (rrb_nth xs i)
-      nil))
-
-(defun vpop (xs)
-  (if (zero? (vcount xs))
-      xs
-      (->vec (rrb_pop xs))))
-
-(defun vpeek (xs)
-  (if (zero? (vcount xs))
-      nil
-      (rrb_peek xs)))
-
-(defun vupdate (xs i elm)
-  (if (< i (vcount xs))
-      (->vec (rrb_update xs i elm))
-      xs))
-
-(defun vconcat (xs ys)
-  (->vec (rrb_concat xs ys)))
-
-(defun vslice (xs from to)
-  (let ((len (vcount xs)))
-    (if (and (< from len)
-             (< to len))
-        (->vec (rrb_slice xs from to))
-        xs)))
-
-(defun rrb-test ()
+(defun rrb-vector-test ()
   (let ((tree (vector)))
     (let ((tree2 (vpush tree 42)))
+      (println (type tree2))
       (println (vcount tree))
       (println (vcount tree2))
       (println (vnth tree2 0))
@@ -499,33 +527,11 @@
       (println (vconcat tree2 tree2))
       (println (vslice (vpush (vpush (vpush (vpush tree 1) 2) 3) 4) 1 3)))))
 
-(declare hash i64 (string))
-
-(defun ->hash-map (xs)
-  (make_value 134 xs))
-
-(defun hash-map ()
-  (->hash-map (vector)))
-
-(defun assoc (xs k v)
-  (let ((hashed-key (hash k))
-        (new-vec (vector)))
-    (->hash-map (vpush xs (vpush (vpush new-vec hashed-key) v)))))
-
-(defun get (xs k)
-  (let ((get* (lambda (xs k i)
-                 (if (zero? i)
-                     nil
-                     (let ((pair (vnth xs (dec i))))
-                       (if (= k (vnth pair 0))
-                           (vnth pair 1)
-                           (recur xs k (dec i))))))))
-    (get* xs (hash k) (vcount xs))))
-
-(defun rrb-hash-maps-test ()
+(defun rrb-hash-map-test ()
   (println (hash-map))
   (let ((hm (assoc (assoc (hash-map) "foo" 42) "bar" 38)))
     (println hm)
+    (println (type hm))
     (println (get hm "foo"))
     (println (get hm "bar"))
     (println (get hm "baz"))))
@@ -535,8 +541,8 @@
   ;; (compile-module)
   ;; (jit-compile)
   ;; (repl)
-  (rrb-test)
-  (rrb-hash-maps-test)
+  (rrb-vector-test)
+  (rrb-hash-map-test)
   )
 
 (compily argv)
