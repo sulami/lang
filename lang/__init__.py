@@ -56,6 +56,7 @@ FFI_TYPES = {
     'void_ptr': T_VOID_PTR,
     'bool': T_BOOL,
     'i32': T_I32,
+    'i64': T_I64,
     'string': T_VOID_PTR,
     'ptr_ptr': T_VOID_PTR.as_pointer(),
 }
@@ -66,6 +67,7 @@ FFI_TYPE_MAPPING = {
     T_VOID_PTR: 128,
     T_BOOL: 1,
     T_I32: 2,
+    T_I64: 2,
     T_VOID_PTR.as_pointer(): 128,
 }
 

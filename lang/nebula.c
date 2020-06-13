@@ -42,7 +42,7 @@ int nebula_main(int argc, char** argv) {
 // Primitive values are <128, pointers >=128.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4, TYPE = 5,
            STRING = 128, CONS = 129, FUNCTION = 130, ARRAY = 131,
-           POINTER = 132, VECTOR = 133};
+           POINTER = 132, VECTOR = 133, HASH_MAP = 134};
 union Primitive {
   bool b;
   int i;
@@ -190,7 +190,7 @@ bool value_truthy(struct Value* value) {
     return true;
     break;
   default:
-    return false;
+    return true;
     break;
   }
 }
@@ -266,6 +266,9 @@ void print_value(struct Value* value) {
     case VECTOR:
       printf("<type: vector>");
       break;
+    case HASH_MAP:
+      printf("<type: hash-map>");
+      break;
     default:
       printf("<type: unknown>");
       break;
@@ -297,7 +300,10 @@ void print_value(struct Value* value) {
     printf("<ptr: %X>", (uint32_t)value->value->ptr);
     break;
   case VECTOR:
-    printf("<vector: %X>", (uint32_t)value->value->ptr);
+    printf("<vector: %X>", (uint32_t)value->value);
+    break;
+  case HASH_MAP:
+    printf("<hash-map: %X>", (uint32_t)value->value);
     break;
   }
 }
@@ -504,6 +510,20 @@ void* deref(struct Value* val) {
 
 void call(void* fptr) {
   printf("%d\n", ((int (*)(int, int))fptr)(38, 4));
+}
+
+/* Utility */
+
+// djb2 string hash function.
+unsigned long hash(unsigned char* str) {
+  unsigned long hash = 5381;
+  int c;
+
+  while ((c = *str++)) {
+    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+  }
+
+  return hash;
 }
 
 /* Testing */

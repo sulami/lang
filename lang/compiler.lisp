@@ -1,4 +1,4 @@
-;; -*- eval: (sly-mode -1) -*-
+;; -*- eval: (progn (sly-mode -1) (company-mode -1)) -*-
 
 ;; This is the compiler, bootstrapped.
 
@@ -444,14 +444,14 @@
 (declare rrb_concat void_ptr (void_ptr void_ptr))
 (declare rrb_slice void_ptr (void_ptr i32 i32))
 
-(defun %to-vec (ptr)
+(defun ->vec (ptr)
   (make_value 133 ptr))
 
 (defun vector ()
-  (%to-vec (rrb_create)))
+  (->vec (rrb_create)))
 
 (defun vpush (xs elm)
-  (%to-vec (rrb_push xs elm)))
+  (->vec (rrb_push xs elm)))
 
 (defun vcount (xs)
   (rrb_count xs))
@@ -464,7 +464,7 @@
 (defun vpop (xs)
   (if (zero? (vcount xs))
       xs
-      (%to-vec (rrb_pop xs))))
+      (->vec (rrb_pop xs))))
 
 (defun vpeek (xs)
   (if (zero? (vcount xs))
@@ -473,17 +473,17 @@
 
 (defun vupdate (xs i elm)
   (if (< i (vcount xs))
-      (%to-vec (rrb_update xs i elm))
+      (->vec (rrb_update xs i elm))
       xs))
 
 (defun vconcat (xs ys)
-  (%to-vec (rrb_concat xs ys)))
+  (->vec (rrb_concat xs ys)))
 
 (defun vslice (xs from to)
   (let ((len (vcount xs)))
     (if (and (< from len)
              (< to len))
-        (%to-vec (rrb_slice xs from to))
+        (->vec (rrb_slice xs from to))
         xs)))
 
 (defun rrb-test ()
@@ -499,12 +499,44 @@
       (println (vconcat tree2 tree2))
       (println (vslice (vpush (vpush (vpush (vpush tree 1) 2) 3) 4) 1 3)))))
 
+(declare hash i64 (string))
+
+(defun ->hash-map (xs)
+  (make_value 134 xs))
+
+(defun hash-map ()
+  (->hash-map (vector)))
+
+(defun assoc (xs k v)
+  (let ((hashed-key (hash k))
+        (new-vec (vector)))
+    (->hash-map (vpush xs (vpush (vpush new-vec hashed-key) v)))))
+
+(defun get (xs k)
+  (let ((get* (lambda (xs k i)
+                 (if (zero? i)
+                     nil
+                     (let ((pair (vnth xs (dec i))))
+                       (if (= k (vnth pair 0))
+                           (vnth pair 1)
+                           (recur xs k (dec i))))))))
+    (get* xs (hash k) (vcount xs))))
+
+(defun rrb-hash-maps-test ()
+  (println (hash-map))
+  (let ((hm (assoc (assoc (hash-map) "foo" 42) "bar" 38)))
+    (println hm)
+    (println (get hm "foo"))
+    (println (get hm "bar"))
+    (println (get hm "baz"))))
+
 (defun compily (args)
   ;; (compile-source args)
   ;; (compile-module)
   ;; (jit-compile)
   ;; (repl)
   (rrb-test)
+  (rrb-hash-maps-test)
   )
 
 (compily argv)
