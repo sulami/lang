@@ -412,9 +412,9 @@
 
   ;; FIXME This call currently segfaults. I don't know why, but my
   ;; money is on bad unwrapping.
-  (def jit-fptr (LLVMGetFunctionAddress (deref jit-engine) "jit-add"))
-  (debug_value jit-fptr)
-  (call jit-fptr)
+  ;; (def jit-fptr (LLVMGetFunctionAddress (deref jit-engine) "jit-add"))
+  ;; (debug_value jit-fptr)
+  ;; (call jit-fptr)
   ;; (func_ptr jit-engine "jit-add")
 
   nil
@@ -429,11 +429,82 @@
           (map println (parse-string input))
           (recur)))))
 
+;; Wrapping RRB tree-based vector functions.
+
+;; Note that due to the lack of an error system, these are currently
+;; quite quiet on OOB errors.
+
+(declare rrb_create void_ptr ())
+(declare rrb_count i32 (void_ptr))
+(declare rrb_nth value (void_ptr i32))
+(declare rrb_pop void_ptr (void_ptr))
+(declare rrb_peek value (void_ptr))
+(declare rrb_push void_ptr (void_ptr value))
+(declare rrb_update void_ptr (void_ptr i32 value))
+(declare rrb_concat void_ptr (void_ptr void_ptr))
+(declare rrb_slice void_ptr (void_ptr i32 i32))
+
+(defun %to-vec (ptr)
+  (make_value 133 ptr))
+
+(defun vector ()
+  (%to-vec (rrb_create)))
+
+(defun vpush (xs elm)
+  (%to-vec (rrb_push xs elm)))
+
+(defun vcount (xs)
+  (rrb_count xs))
+
+(defun vnth (xs i)
+  (if (< i (vcount xs))
+      (rrb_nth xs i)
+      nil))
+
+(defun vpop (xs)
+  (if (zero? (vcount xs))
+      xs
+      (%to-vec (rrb_pop xs))))
+
+(defun vpeek (xs)
+  (if (zero? (vcount xs))
+      nil
+      (rrb_peek xs)))
+
+(defun vupdate (xs i elm)
+  (if (< i (vcount xs))
+      (%to-vec (rrb_update xs i elm))
+      xs))
+
+(defun vconcat (xs ys)
+  (%to-vec (rrb_concat xs ys)))
+
+(defun vslice (xs from to)
+  (let ((len (vcount xs)))
+    (if (and (< from len)
+             (< to len))
+        (%to-vec (rrb_slice xs from to))
+        xs)))
+
+(defun rrb-test ()
+  (let ((tree (vector)))
+    (let ((tree2 (vpush tree 42)))
+      (println (vcount tree))
+      (println (vcount tree2))
+      (println (vnth tree2 0))
+      (println (vnth tree2 1))
+      (println (vpeek tree))
+      (println (vpop tree))
+      (println (vpeek (vupdate tree2 0 38)))
+      (println (vconcat tree2 tree2))
+      (println (vslice (vpush (vpush (vpush (vpush tree 1) 2) 3) 4) 1 3)))))
+
 (defun compily (args)
-  (compile-source args)
-  (compile-module)
-  (jit-compile)
+  ;; (compile-source args)
+  ;; (compile-module)
+  ;; (jit-compile)
   ;; (repl)
+  (rrb-test)
   )
 
 (compily argv)

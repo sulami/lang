@@ -41,7 +41,8 @@ int nebula_main(int argc, char** argv) {
 
 // Primitive values are <128, pointers >=128.
 enum Type {NIL = 0, BOOL = 1, INT = 2, FLOAT = 3, CHAR = 4, TYPE = 5,
-           STRING = 128, CONS = 129, FUNCTION = 130, ARRAY = 131, POINTER = 132};
+           STRING = 128, CONS = 129, FUNCTION = 130, ARRAY = 131,
+           POINTER = 132, VECTOR = 133};
 union Primitive {
   bool b;
   int i;
@@ -259,6 +260,12 @@ void print_value(struct Value* value) {
     case ARRAY:
       printf("<type: array>");
       break;
+    case POINTER:
+      printf("<type: pointer>");
+      break;
+    case VECTOR:
+      printf("<type: vector>");
+      break;
     default:
       printf("<type: unknown>");
       break;
@@ -288,6 +295,9 @@ void print_value(struct Value* value) {
     break;
   case POINTER:
     printf("<ptr: %X>", (uint32_t)value->value->ptr);
+    break;
+  case VECTOR:
+    printf("<vector: %X>", (uint32_t)value->value->ptr);
     break;
   }
 }
