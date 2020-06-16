@@ -1,8 +1,9 @@
+O_LEVEL=-Ofast
 LLVM_PATH=/usr/local/Cellar/llvm/10.0.0_3/bin
 CC=clang
-CFLAGS=-g `${LLVM_PATH}/llvm-config --cflags`
+CFLAGS=`${LLVM_PATH}/llvm-config --cflags` ${O_LEVEL}
 LD=clang++
-LDFLAGS=-lffi `${LLVM_PATH}/llvm-config --cxxflags --ldflags --libs core executionengine interpreter mcjit x86 --system-libs`
+LDFLAGS=-lffi `${LLVM_PATH}/llvm-config --cxxflags --ldflags --libs core executionengine interpreter mcjit x86 --system-libs` ${O_LEVEL}
 LLC=${LLVM_PATH}/llc
 LLVM_DIS=${LLVM_PATH}/llvm-dis
 LLDB=${LLVM_PATH}/lldb
