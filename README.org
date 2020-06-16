@@ -29,6 +29,83 @@ Nothing to report on this yet, I have not written a benchmark suite yet.
 Currently sitting at 23MB (or 18MB after ~strip~). Probably want some
 ways to optimise for small binary size as well.
 
+* Feature Planning
+
+** Meta-Programs
+
+JAI (again) does full arbitrary compile-time user code execution. I'd
+like the same capabilities. For that, expose hooks that the user
+program can subscribe to to alter compilation behaviour, or do
+additional things.
+
+A nice touch would be to implement macro expansion & optimisation
+passes this way.
+
+#+begin_src fundamental
++----------------+    +-----------+    +------------------+
+| Lexer + Parser | -> | User code | -> | Compiler backend |
++----------------+    +-----------+    +------------------+
+#+end_src
+
+** Condition System
+
+I'll probably just copy the condition system from Common Lisp, so
+dynamically scoped hooks & handlers.
+
+** FFI
+
+This is the big unknown still.
+
+There will probably be linking to foreign libraries (like LLVM), but I
+have not decided on how to expose that yet.
+
+** Build Options
+
+The option to compile only the minimal required runtime without a REPL
+and such, to get a smaller, potentially more aggressively optimised
+binary.
+
+The option to only syntax-check. Or do completion. Basically build an
+LSP server into the compiler.
+
+The option to tweak and completely swap out core components like the
+GC.
+
+** Extensibility
+
+Simple and safe custom types.
+
+I have some ideas for super slim interfaces, but I'm not sure about
+those yet, I'll have to test them in practice.
+
+** Errors first
+
+Error messages are the number one way the programmer interacts with
+the compiler. They need to be highly context-sensitive, and accessible
+as data as well.
+
+** Internal Features
+
+These are all implementation features which aren't directly visible to
+the programmer.
+
+*** Type Inference
+
+The programmer should not have to care about this too much, and due to
+the interface model does not need to know necessarily the type of a
+value, but in the backend we want to be relatively strongly typed.
+
+Of course manual type casts and instantiation of custom types will be
+easy. All type annotations should be optional, and there should not be
+a (large) penalty for omitting them.
+
+*** Function Purity Tagging
+
+An optimisation pass which tags all functions that are known to be
+pure. This allows us to do Haskell-like things like deeply recursive
+compile-time constant folding, and transparent memoisation all the way
+to conversion of functions to lookup tables.
+
 * Useful Links
 
 - [[https://llvm.org/doxygen/group__LLVMCCoreModule.html][LLVM-C core module docs]]
@@ -36,3 +113,11 @@ ways to optimise for small binary size as well.
 - [[https://llvmlite.readthedocs.io/en/v0.31.0/user-guide/ir/values.html][LLVMLite docs (Python)]]
 - [[https://www.cprogramming.com/tutorial/shared-libraries-linux-gcc.html][Shared libraries]]
 - [[https://github.com/owst/getting-started-with-the-newer-llvm-c-api/blob/master/sum.c][MCJIT example in C]]
+
+* Timeline
+
+Initial prototyping work started in October 2019.
+
+The bootstrap compiler in Python was started in March 2020.
+
+The self-hosted compiler was started in April 2020.
