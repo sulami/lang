@@ -482,17 +482,19 @@
 (declare LLVMLinkInMCJIT void ())
 (declare LLVMLinkInInterpreter void ())
 (declare LLVMInitializeX86Target void ())
+(declare LLVMInitializeX86TargetInfo void ())
+(declare LLVMInitializeX86TargetMC void ())
 (declare LLVMInitializeX86AsmPrinter void ())
 (declare LLVMCreateExecutionEngineForModule i32 (void_ptr void_ptr void_ptr))
 (declare LLVMCreateGenericValueOfInt void_ptr (void_ptr i32 bool))
 (declare LLVMGetFunctionAddress void_ptr (void_ptr string))
-(declare LLVMRunFunction void_ptr (void_ptr void_ptr i32 void_ptr))
-(declare jit_stuff void ())
 (declare debug_value void (value))
-(declare func_ptr void (value string))
+(declare func_ptr void_ptr (void_ptr string))
 (declare make_pointer value ())
 (declare deref void_ptr (value))
-(declare call void (void_ptr))
+(declare make_engine void_ptr (void_ptr))
+(declare call_func value (void_ptr i32 i32))
+(declare jit_stuff void ())
 
 (defun jit-compile ()
   ;; This is mostly identitcal to the regular compile, just different
@@ -523,13 +525,19 @@
 
   ;; This is the interesting part, setup an execution engine and JIT
   ;; compile the function above.
-  (LLVMInitializeX86Target)
-  (LLVMInitializeX86AsmPrinter)
   (LLVMLinkInMCJIT)
+  ;; NOTE These steps below are the unfolded
+  ;; `LLVMInitializeNativeTarget', which does not work in the
+  ;; llvmlite-based compiler.
+  (LLVMInitializeX86TargetInfo)
+  (LLVMInitializeX86Target)
+  (LLVMInitializeX86TargetMC)
+  (LLVMInitializeX86AsmPrinter)
+
   (LLVMLinkInInterpreter)
+
   ;; Pointers.
   (def jit-engine (make_pointer))
-  ;; (debug_value jit-engine)
   (def jit-engine-error 0)
   (def jit-engine-creation (LLVMCreateExecutionEngineForModule jit-engine
                                                                jit-module
@@ -538,17 +546,12 @@
       (progn (print "error creating execution engine: ")
              (println jit-engine-creation))
       nil)
-  ;; (jit_stuff)
 
-  ;; FIXME This call currently segfaults. I don't know why, but my
-  ;; money is on bad unwrapping.
-  ;; (def jit-fptr (LLVMGetFunctionAddress (deref jit-engine) "jit-add"))
-  ;; (debug_value jit-fptr)
-  ;; (call jit-fptr)
-  ;; (func_ptr jit-engine "jit-add")
+  (let ((fptr (LLVMGetFunctionAddress (deref jit-engine)
+                                      "jit-add")))
+    (println (call_func fptr 38 4)))
 
-  nil
-  )
+  nil)
 
 ;; FIXME currently can't return strings from functions, and probably
 ;; no other pointer types either.
@@ -595,8 +598,8 @@
 (defun compily (args)
   ;; (compile-source args)
   ;; (compile-module)
-  ;; (jit-compile)
-  (repl)
+  (jit-compile)
+  ;; (repl)
   ;; (rrb-vector-test)
   ;; (rrb-hash-map-test)
   )
