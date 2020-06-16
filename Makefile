@@ -1,5 +1,6 @@
-O_LEVEL=-Ofast
+O_LEVEL=-O0
 LLVM_PATH=/usr/local/Cellar/llvm/10.0.0_3/bin
+TIME=/usr/bin/time
 CC=clang
 CFLAGS=`${LLVM_PATH}/llvm-config --cflags` ${O_LEVEL}
 LD=clang++
@@ -11,16 +12,16 @@ LLDB=${LLVM_PATH}/lldb
 all: out
 
 out: out.o nebula.o rbb.o
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(TIME) $(LD) $(LDFLAGS) -o $@ $^
 
 %.o: lang/%.c
-	$(CC) $(CFLAGS) -Wall -c $<
+	$(TIME) $(CC) $(CFLAGS) -Wall -c $<
 
 out.o: out.ll
-	$(LLC) --filetype=obj -o=$@ $<
+	$(TIME) $(LLC) --filetype=obj -o=$@ $<
 
 out.ll: lang/__init__.py lang/compiler.lisp
-	poetry run lang lang/compiler.lisp
+	$(TIME) poetry run lang lang/compiler.lisp
 
 clean:
 	rm -f *.o *.ll out bitception
@@ -29,15 +30,15 @@ debug: out
 	$(LLDB) $<
 
 nebula.ll: lang/nebula.c
-	$(CC) $(CFLAGS) -o $@ -S -emit-llvm $<
+	$(TIME) $(CC) $(CFLAGS) -o $@ -S -emit-llvm $<
 
 # self hostception
 
 bitception: bitception.o
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(TIME) $(LD) $(LDFLAGS) -o $@ $^
 
 bitception.o: bitception.ll
-	$(LLC) --filetype=obj -o=$@ $<
+	$(TIME) $(LLC) --filetype=obj -o=$@ $<
 
 bitception.ll: lang/compiler.lisp out
-	./out $<
+	$(TIME) ./out $<
