@@ -4,6 +4,31 @@
 
 Just ~make~ it.
 
+* SLOs
+
+** Compilation Speed
+
+This is the most important metric, as fast feedback loops are
+important. Even though we're a Lisp with a REPL, we still want *fast*
+compiles.
+
+JAI does ~104k lines/second (including whitespace & comments).
+
+We don't want to be too far behind that, though will probably be a
+bit, due to the less direct mapping to LLVM, as well as additional
+analysis for improved runtime performance.
+
+[[https://stackoverflow.com/questions/15548023/clang-optimization-levels][This SO answer]] has a list of LLVM optimisation levels.
+
+** Runtime Performance
+
+Nothing to report on this yet, I have not written a benchmark suite yet.
+
+** Binary Size
+
+Currently sitting at 23MB (or 18MB after ~strip~). Probably want some
+ways to optimise for small binary size as well.
+
 * Useful Links
 
 - [[https://llvm.org/doxygen/group__LLVMCCoreModule.html][LLVM-C core module docs]]
