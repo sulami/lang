@@ -376,7 +376,14 @@
 
 ;; Parser
 
-(defun parse (unparsed ast)
+(defun make-lexeme (line column kind content)
+  (let ((hm (hash-map)))
+    (let ((hm (assoc hm :line line)))
+      (let ((hm (assoc hm :column column)))
+        (let ((hm (assoc hm :kind kind)))
+          (assoc hm :content content))))))
+
+(defun lex (unparsed ast)
   (let ((c (car unparsed))
         (current-word (car ast))
         (rest (cdr ast)))
@@ -409,7 +416,7 @@
 
                     (if (= \( c)
                         ;; Inner sexp, call down one level.
-                        (let ((inner (parse (cdr unparsed)
+                        (let ((inner (lex (cdr unparsed)
                                             nil
                                             false)))
                           (let ((inner-unparsed (car inner))
@@ -435,11 +442,11 @@
                               (debugp "ast" ast)
                               (debugp "the word" (cons->str (take-while take-word unparsed)))
                               (recur (drop-while take-word unparsed)
-                                     (cons (cons->str (take-while take-word unparsed))
+                                     (cons (make-lexeme 0 0 :symbol (cons->str (take-while take-word unparsed)))
                                            ast)))))))))))
 
 (defun parse-string (s)
-  (cadr (parse (str->cons s) nil)))
+  (cadr (lex (str->cons s) nil)))
 
 ;; Token types.
 
@@ -597,13 +604,17 @@
     (println (get hm :bar))
     (println (get hm :baz))))
 
+(defun lexer-test ()
+  (println (parse-string "(foo (bar baz) quux)")))
+
 (defun compily (args)
   ;; (compile-source args)
   ;; (compile-module)
-  (jit-compile)
+  ;; (jit-compile)
   ;; (repl)
   ;; (rrb-vector-test)
-  (rrb-hash-map-test)
+  ;; (rrb-hash-map-test)
+  (lexer-test)
   )
 
 (compily argv)
