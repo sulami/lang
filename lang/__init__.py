@@ -45,6 +45,7 @@ RUNTIME_TYPES = {
     'cons': 129,
     'function': 130,
     'array': 131,
+    'keyword': 135,
 }
 
 # Values
@@ -484,6 +485,14 @@ def compile_nil(env, expression):
     runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
     return runtime_value
 
+def compile_keyword(env, expression):
+    # Basically just a string with a different type.
+    val = make_string(expression[1:])
+    vptr = store_value(env, val)
+    typ = ir.Constant(T_I32, RUNTIME_TYPES['keyword'])
+    runtime_value = env.builder.call(env.lib['make_value'], [typ, vptr])
+    return runtime_value
+
 def compile_constant_char(env, expression):
     # Chars are encoded as integers.
     if 2 == len(expression):
@@ -532,12 +541,15 @@ def compile_expression(env, expression, depth=0):
     elif re.match('^\\\\(\w|space|newline|tab|\(|\)|"|;|\\\\)$', expression):
         # char (NOTE: this regex above matches "\c")
         return compile_constant_char(env, expression)
-    elif re.match('^-?[0-9]+\.[0-9]+$',  expression):
+    elif re.match('^-?[0-9]+\.[0-9]+$', expression):
         # constant float
         return compile_constant_float(env, expression)
-    elif re.match('^-?[0-9]+$',  expression):
+    elif re.match('^-?[0-9]+$', expression):
         # constant int
         return compile_constant_int(env, expression)
+    elif re.match('^:[a-zA-Z_-]+$', expression):
+        # keyword
+        return compile_keyword(env, expression)
     else:
         # symbol
         return compile_symbol(env, expression)
