@@ -85,6 +85,11 @@ struct Value* make_value(enum Type type, union Primitive* value) {
     }
     *val = *value;
     retval->value = val;
+  } else if (128 == type) {
+    // Strings get special treatment.
+    char* copy = malloc(sizeof(char) * strlen((char*)value));
+    strcpy(copy, (char*)value);
+    retval->value = (union Primitive*)copy;
   } else {
     retval->value = value;
   }

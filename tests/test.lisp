@@ -13,4 +13,8 @@
 (defun call-a-fun ()
   (println (return-a-string)))
 
+(defun print-a-string ()
+  (println "this is a long inline string"))
+
 (call-a-fun)
+(print-a-string)
