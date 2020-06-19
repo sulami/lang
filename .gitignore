@@ -4,4 +4,6 @@
 *.ll
 out
 bitception
+compiler
+test
 lang.egg-info

@@ -694,13 +694,14 @@ def main():
     init_llvm()
     engine = compile_execution_engine()
     ast = None
-    with open(sys.argv[1], 'r') as fp:
+    source_file = sys.argv[1]
+    with open(source_file, 'r') as fp:
         _, ast = parse(fp.read())
     debug(ast)
     main_mod = compile_main(ast)
     debug(main_mod)
     # debug(main_mod)
-    with open('out.ll', 'w') as llvm_ir:
+    with open(source_file.split('.')[0].split('/')[-1] + '.ll', 'w') as llvm_ir:
         llvm_ir.write(str(main_mod))
         llvm_ir.flush()
     main_mod = compile_ir(engine, str(main_mod))

@@ -9,24 +9,24 @@ LLC=${LLVM_PATH}/llc
 LLVM_DIS=${LLVM_PATH}/llvm-dis
 LLDB=${LLVM_PATH}/lldb
 
-all: out
+all: compiler
 
-out: out.o nebula.o rbb.o
+compiler: compiler.o nebula.o rbb.o
 	$(TIME) $(LD) $(LDFLAGS) -o $@ $^
 
 %.o: lang/%.c
 	$(TIME) $(CC) $(CFLAGS) -Wall -c $<
 
-out.o: out.ll
+compiler.o: compiler.ll
 	$(TIME) $(LLC) --filetype=obj -o=$@ $<
 
-out.ll: lang/__init__.py lang/compiler.lisp
+compiler.ll: lang/__init__.py lang/compiler.lisp
 	$(TIME) poetry run lang lang/compiler.lisp
 
 clean:
-	rm -f *.o *.ll out bitception
+	rm -f *.o *.ll compiler bitception test
 
-debug: out
+debug: compiler
 	$(LLDB) $<
 
 nebula.ll: lang/nebula.c
@@ -40,5 +40,16 @@ bitception: bitception.o
 bitception.o: bitception.ll
 	$(TIME) $(LLC) --filetype=obj -o=$@ $<
 
-bitception.ll: lang/compiler.lisp out
-	$(TIME) ./out $<
+bitception.ll: lang/compiler.lisp compiler
+	$(TIME) ./compiler $<
+
+# test
+
+test: test.o nebula.o rbb.o
+	$(TIME) $(LD) $(LDFLAGS) -o $@ $^
+
+test.o: test.ll
+	$(TIME) $(LLC) --filetype=obj -o=$@ $<
+
+test.ll: lang/__init__.py tests/test.lisp
+	$(TIME) poetry run lang tests/test.lisp
