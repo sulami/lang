@@ -72,29 +72,33 @@ struct Value* make_value(enum Type type, union Primitive* value) {
     exit(ENOMEM);
   }
 
+  retval->type = type;
+
   // We have to allocate the actual value on the heap, as LLVM stores
   // things on the stack only, so we'd lose our boxed value when
   // returning from a function. Nil is a special case, as value is
   // empty, and (usually) a null pointer, so we can skip this step.
   // Non-primitive values (type >= 128) can also safely be assigned
   // over, as they're only pointers anyway.
-  if ((NIL != type) && (type < 128)) {
+  if ((NIL != type) && (type < STRING)) {
     union Primitive* val = malloc(sizeof(union Primitive));
     if (NULL == val) {
       exit(ENOMEM);
     }
     *val = *value;
     retval->value = val;
-  } else if (128 == type) {
-    // Strings get special treatment.
-    char* copy = malloc(sizeof(char) * strlen((char*)value));
+  } else if ((STRING == type) || (KEYWORD == TYPE)) {
+    // Strings & keywords get special treatment.
+    char* copy = malloc(sizeof(char) * (1 + strlen((char*)value)));
+    if (NULL == copy) {
+      exit(ENOMEM);
+    }
     strcpy(copy, (char*)value);
     retval->value = (union Primitive*)copy;
   } else {
     retval->value = value;
   }
 
-  retval->type = type;
   return retval;
 }
 
