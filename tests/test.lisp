@@ -166,8 +166,12 @@
 (defun return-keyword ()
   :keyword)
 
-(progn
-  (println "done with setup")
-  (println (return-string))
-  (println (return-keyword))
-  )
+;; (progn
+;;   (println "done with setup")
+;;   (println (return-string))
+;;   (println (return-keyword))
+;;   )
+
+(declare strlen i32 (void_ptr))
+
+(println (strlen "foobaar"))

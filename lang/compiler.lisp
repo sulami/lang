@@ -9,6 +9,7 @@
 
 ;; C stdlib
 (declare malloc void_ptr (i32))
+(declare strlen i32 (void_ptr))
 
 ;; libnebula
 (declare nebula_debug void (void_ptr))
@@ -432,50 +433,55 @@
             ;; Escaped character, add as token.
             ;; XXX Currently only a single char.
             ;; FIXME Can't be the last char.
-            (recur (assoc position :column (+ 2 column))
-                   (drop 2 unparsed)
-                   (cons (nth unparsed 1)
-                         ast))
+            (let ((position (assoc (hash-map) :line line)))
+              (recur (assoc position :column (+ 2 column))
+                     (drop 2 unparsed)
+                     (cons (nth unparsed 1)
+                           ast)))
 
             (if (= \newline c)
                 ;; Newline, increment line counter.
-                (let ((position (hash-map)))
-                  (let ((position (assoc position :line (inc line))))
-                    (let ((position (assoc position :column 0)))
-                      (recur position
-                             (cdr unparsed)
-                             ast))))
+                (let ((position (assoc (hash-map) :line (inc line))))
+                  (let ((position (assoc position :column 1)))
+                    (recur position
+                           (cdr unparsed)
+                           ast)))
 
                 (if (= \; c)
                     ;; A comment, skip until the newline.
-                    (recur (assoc (assoc position :column 1) :line (inc line))
-                           (drop-while (lambda (x) (not= \newline x))
-                                       unparsed)
-                           ast)
+                    (let ((position (assoc (hash-map) :column 1)))
+                      (recur (assoc position :line (inc line))
+                             (drop-while (lambda (x) (not= \newline x))
+                                         unparsed)
+                             ast))
 
                     (if (whitespace-char? c)
                         ;; Just skip ahead.
-                        (recur position ;; FIXME count the whitespace skipped
-                               (drop-while whitespace-char? unparsed)
-                               ast)
+                        (let ((skipped (take-while whitespace-char? unparsed))
+                              (position (assoc (hash-map) :line line)))
+                          (recur (assoc position :column (+ (count skipped) column))
+                                 (drop-while whitespace-char? unparsed)
+                                 ast))
 
                         (if (= \( c)
                             ;; Inner sexp, call down one level.
-                            (let ((inner (lex position
-                                              (cdr unparsed)
-                                              nil)))
-                              (let ((inner-unparsed (get inner :unparsed))
-                                    (inner-ast (get inner :ast))
-                                    (inner-position (get inner :position)))
-                                (recur inner-position
-                                       inner-unparsed
-                                       (cons inner-ast
-                                             ast))))
+                            (let ((position (assoc (hash-map) :line line)))
+                              (let ((inner (lex (assoc position :column (inc column))
+                                                (cdr unparsed)
+                                                nil)))
+                                (let ((inner-unparsed (get inner :unparsed))
+                                      (inner-ast (get inner :ast))
+                                      (inner-position (get inner :position)))
+                                  (recur inner-position
+                                         inner-unparsed
+                                         (cons inner-ast
+                                               ast)))))
 
                             (if (= \) c)
                                 ;; Done in this sexp, return up one level.
-                                (let ((rv (hash-map)))
-                                  (let ((rv (assoc rv :position position)))
+                                (let ((rv (hash-map))
+                                      (position (assoc (hash-map) :line line)))
+                                  (let ((rv (assoc rv :position (assoc position :column (inc column)))))
                                     (let ((rv (assoc rv :unparsed (cdr unparsed))))
                                       (assoc rv :ast (reverse ast)))))
 
@@ -486,11 +492,13 @@
                                                        (and (not (whitespace-char? x))
                                                             (and (not= \( x)
                                                                  (and (not= \) x)
-                                                                      (not= \; x))))))))
-                                  (recur (assoc position :column (inc column)) ;; FIXME count word length
-                                         (drop-while take-word unparsed)
-                                         (cons (make-lexeme line column :symbol (cons->str (take-while take-word unparsed)))
-                                               ast))))))))))))
+                                                                      (not= \; x)))))))
+                                      (position (assoc (hash-map) :line line)))
+                                  (let ((symbol (cons->str (take-while take-word unparsed))))
+                                    (recur (assoc position :column (+ (strlen symbol) column))
+                                           (drop-while take-word unparsed)
+                                           (cons (make-lexeme line column :symbol symbol)
+                                                 ast)))))))))))))
 
 (defun parse-string (s)
   (let ((position (hash-map)))
@@ -661,7 +669,7 @@
         (print "(")
         (map print-list-elm elm)
         (print ")"))
-      (print (get elm :line))))
+      (print (get elm :column))))
 
 (defun lexer-test ()
   (println (print-list-elm (parse-string "(foo (bar baz) quux)")))
