@@ -45,6 +45,9 @@ bitception.ll: lang/compiler.lisp compiler
 
 # test
 
+testdebug: test
+	$(LLDB) $<
+
 test: test.o nebula.o rbb.o
 	$(TIME) $(LD) $(LDFLAGS) -o $@ $^
 
