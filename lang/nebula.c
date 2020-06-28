@@ -87,7 +87,7 @@ struct Value* make_value(enum Type type, union Primitive* value) {
     }
     *val = *value;
     retval->value = val;
-  } else if ((STRING == type) || (KEYWORD == TYPE)) {
+  } else if ((STRING == type) || (KEYWORD == type)) {
     // Strings & keywords get special treatment.
     char* copy = malloc(sizeof(char) * (1 + strlen((char*)value)));
     if (NULL == copy) {
