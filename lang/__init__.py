@@ -45,6 +45,9 @@ RUNTIME_TYPES = {
     'cons': 129,
     'function': 130,
     'array': 131,
+    'pointer': 132,
+    'vector': 133,
+    'hashmap': 134,
     'keyword': 135,
 }
 
@@ -63,13 +66,13 @@ FFI_TYPES = {
 }
 
 FFI_TYPE_MAPPING = {
-    T_VALUE_STRUCT_PTR: 128,
+    T_VALUE_STRUCT_PTR: 132,
     T_VOID: 0,
-    T_VOID_PTR: 128,
+    T_VOID_PTR: 132,
     T_BOOL: 1,
     T_I32: 2,
     T_I64: 2,
-    T_VOID_PTR.as_pointer(): 128,
+    T_VOID_PTR.as_pointer(): 132,
 }
 
 def debug(*args):
