@@ -319,10 +319,21 @@
 (defun hash-map ()
   (->hash-map (vector)))
 
+;; Currently a vector containing vectors of length 3 each.
+;; [ hashed key, key, value ]
+;; The hashed key will eventually be used for calculating the path
+;; inside a more deeply nested vector.
+
 (defun assoc (xs k v)
   (let ((hashed-key (hash k))
         (new-vec (vector)))
-    (->hash-map (vpush xs (vpush (vpush new-vec hashed-key) v)))))
+    (->hash-map
+     (vpush xs
+            (vpush
+             (vpush
+              (vpush new-vec hashed-key)
+              k)
+             v)))))
 
 (defun get (xs k)
   (let ((get* (lambda (xs k i)
@@ -330,10 +341,31 @@
                      nil
                      (let ((pair (vnth xs (dec i))))
                        (if (= k (vnth pair 0))
-                           (vnth pair 1)
+                           (vnth pair 2)
                            (recur xs k (dec i))))))))
     (get* xs (hash k) (vcount xs))))
 
+(defun keys (xs)
+  (let ((keys* (lambda (xs acc i)
+                 (if (zero? i)
+                     acc
+                     (recur xs
+                            (cons (vnth (vnth xs (dec i))
+                                        1)
+                                  acc)
+                            (dec i))))))
+    (keys* xs nil (vcount xs))))
+
+(defun values (xs)
+  (let ((values* (lambda (xs acc i)
+                 (if (zero? i)
+                     acc
+                     (recur xs
+                            (cons (vnth (vnth xs (dec i))
+                                        2)
+                                  acc)
+                            (dec i))))))
+    (values* xs nil (vcount xs))))
 
 ;; Types
 ;; There's currently no notation for types, so we just derive them.
