@@ -1,13 +1,14 @@
 O_LEVEL=-O0
-LLVM_PATH=/usr/local/Cellar/llvm/10.0.0_3/bin
+# LLVM_PATH=/usr/local/Cellar/llvm/10.0.0_3/bin/
+LLVM_PATH=''
 TIME=/usr/bin/time
 CC=clang
-CFLAGS=`${LLVM_PATH}/llvm-config --cflags` ${O_LEVEL}
+CFLAGS=`${LLVM_PATH}llvm-config --cflags` ${O_LEVEL}
 LD=clang++
-LDFLAGS=-lffi `${LLVM_PATH}/llvm-config --cxxflags --ldflags --libs core executionengine interpreter mcjit x86 --system-libs` ${O_LEVEL}
-LLC=${LLVM_PATH}/llc
-LLVM_DIS=${LLVM_PATH}/llvm-dis
-LLDB=${LLVM_PATH}/lldb
+LDFLAGS=-lffi `${LLVM_PATH}llvm-config --cxxflags --ldflags --libs core executionengine interpreter mcjit x86 --system-libs` ${O_LEVEL}
+LLC=${LLVM_PATH}llc
+LLVM_DIS=${LLVM_PATH}llvm-dis
+LLDB=${LLVM_PATH}lldb
 
 all: compiler
 
